@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLDatabase — Merchant Sourcing & Supplier Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans" x-data="sourcingApp()" x-init="init()">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-slate-900 text-white px-6 py-4 shadow flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-6">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
+        <p class="text-xs text-slate-400">Buyer Requirements &rarr; Product Lines &rarr; Supplier Quotes & Samples</p>
+      </div>
+      <!-- View Tabs -->
+      <nav class="flex bg-slate-800 p-1 rounded-lg text-xs font-semibold">
+        <button @click="activeTab = 'orders'"
+                :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Active Orders (<span x-text="orders.length"></span>)
+        </button>
+        <button @click="activeTab = 'directory'"
+                :class="activeTab === 'directory' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Master Directory (<span x-text="buyers.length + suppliers.length"></span>)
+        </button>
+      </nav>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button @click="openBuyerModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm font-medium">+ Add Buyer</button>
+      <button @click="openSupplierModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm font-medium">+ Add Supplier</button>
+      <button @click="openNewOrderModal()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded text-sm font-semibold shadow">+ New Buyer Order</button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+    <!-- ==================== TAB 1: ACTIVE ORDERS ==================== -->
+    <div x-show="activeTab === 'orders'" class="space-y-6">
+      <!-- Order Selector Bar -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3 flex-1 min-w-[260px]">
+          <label class="text-sm font-semibold text-slate-600 whitespace-nowrap">Active Buyer Order:</label>
+          <select x-model="selectedOrderId" class="border border-slate-300 rounded px-3 py-2 text-sm w-full max-w-md bg-slate-50 font-medium">
+            <option value="">-- Select a Buyer Order --</option>
+            <template x-for="o in orders" :key="o.id">
+              <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name} (${o.items.length} products)`"></option>
+            </template>
+          </select>
+        </div>
+        <div class="text-xs text-slate-500">
+          Directory: <span class="font-semibold text-slate-700" x-text="buyers.length"></span> Buyers |
+          <span class="font-semibold text-slate-700" x-text="suppliers.length"></span> Suppliers
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <template x-if="!activeOrder">
+        <div class="bg-white rounded-lg border border-dashed border-slate-300 p-12 text-center space-y-3">
+          <p class="text-lg font-semibold text-slate-700">No Buyer Order Selected</p>
+          <p class="text-sm text-slate-500">Add a Buyer and Suppliers first, then create a Buyer Order with multiple products.</p>
+          <div class="pt-2 flex justify-center gap-3">
+            <button @click="openBuyerModal()" class="bg-slate-800 text-white px-4 py-2 rounded text-sm">1. Add Buyer</button>
+            <button @click="openSupplierModal()" class="bg-slate-800 text-white px-4 py-2 rounded text-sm">2. Add Suppliers</button>
+            <button @click="openNewOrderModal()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm">3. Create Order</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- LEVEL 1: BUYER ORDER HEADER -->
+      <template x-if="activeOrder">
+        <div class="space-y-4">
+          <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+            <div class="flex flex-wrap justify-between items-start gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded" x-text="activeOrder.order_code"></span>
+                  <h2 class="text-xl font-bold text-slate-900" x-text="activeOrder.buyer_name"></h2>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
+                  <span><strong>Contact:</strong> <span x-text="activeOrder.buyer_contact || 'N/A'"></span></span>
+                  <span x-show="activeOrder.buyer_phone">
+                    <strong>Phone:</strong> <span x-text="activeOrder.buyer_phone"></span>
+                    <a :href="waLink(activeOrder.buyer_phone)" target="_blank" class="ml-1 text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded hover:bg-green-200">WhatsApp</a>
+                  </span>
+                  <span><strong>Port:</strong> <span x-text="activeOrder.destination_port || 'N/A'"></span></span>
+                  <span><strong>Terms:</strong> <span x-text="`${activeOrder.incoterms} (${activeOrder.currency})`"></span></span>
+                  <span><strong>Deadline:</strong> <span x-text="activeOrder.target_delivery_date || 'Open'"></span></span>
+                </div>
+              </div>
+
+              <!-- Action & Export Buttons -->
+              <div class="flex flex-wrap items-center gap-2">
+                <a :href="`/api/orders/${activeOrder.id}/export?mode=awarded`"
+                   class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-2 rounded text-xs font-semibold flex items-center gap-1">
+                  &#11015; Export Awarded (CSV)
+                </a>
+                <a :href="`/api/orders/${activeOrder.id}/export?mode=all`"
+                   class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 px-3 py-2 rounded text-xs font-semibold flex items-center gap-1">
+                  &#11015; Export All Quotes (CSV)
+                </a>
+                <button @click="modals.addProduct = true" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded text-sm font-medium shadow-sm">
+                  + Add Product to Order
+                </button>
+              </div>
+            </div>
+
+            <!-- LEVEL 2: PRODUCT ACCORDION LIST -->
+            <div class="mt-4 space-y-3">
+              <template x-for="(item, idx) in activeOrder.items" :key="item.id">
+                <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                  
+                  <!-- Product Summary Row -->
+                  <div @click="toggleItem(item.id)" class="p-4 bg-white hover:bg-slate-50 cursor-pointer flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                      <span class="w-7 h-7 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center" x-text="idx + 1"></span>
+                      <div>
+                        <h3 class="font-bold text-slate-900 text-base" x-text="item.product_name"></h3>
+                        <p class="text-xs text-slate-500">
+                          <span x-text="item.specifications || 'Standard Spec'"></span> &bull;
+                          Qty: <strong class="text-slate-700" x-text="`${item.required_qty} ${item.unit}`"></strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-4 text-sm">
+                      <div class="text-right">
+                        <div class="text-xs text-slate-400">Buyer Target</div>
+                        <div class="font-semibold text-slate-800" x-text="`${activeOrder.currency} ${item.buyer_target_price}`"></div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-xs text-slate-400">Best Supplier</div>
+                        <div class="font-bold" :class="bestQuote(item) > 0 && bestQuote(item) <= item.buyer_target_price ? 'text-emerald-600' : 'text-slate-700'"
+                             x-text="bestQuote(item) > 0 ? `${activeOrder.currency} ${bestQuote(item)}` : 'Pending'"></div>
+                      </div>
+                      <span class="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full"
+                            x-text="`${item.quotes.length} Supplier${item.quotes.length === 1 ? '' : 's'}`"></span>
+                      <span class="text-slate-400 text-xs" x-text="expandedItems[item.id] ? '▲ Hide' : '▼ Suppliers'"></span>
+                    </div>
+                  </div>
+
+                  <!-- LEVEL 3: SUPPLIER CONTACT & STATUS TRACKING TABLE -->
+                  <div x-show="expandedItems[item.id]" class="border-t border-slate-200 p-4 bg-slate-50 space-y-3">
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Assigned Suppliers & Sample Pipeline</span>
+                      <div class="flex gap-2">
+                        <button @click="openAssignSupplier(item)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded">
+                          + Assign Supplier
+                        </button>
+                        <button @click="deleteProduct(item.id)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1">Delete Product</button>
+                      </div>
+                    </div>
+
+                    <template x-if="item.quotes.length === 0">
+                      <p class="text-xs text-slate-500 italic py-2">No suppliers assigned to this product yet. Click "+ Assign Supplier" to start tracking.</p>
+                    </template>
+
+                    <template x-if="item.quotes.length > 0">
+                      <div class="overflow-x-auto bg-white rounded border border-slate-200">
+                        <table class="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                              <th class="p-2.5">Supplier & Contact Info</th>
+                              <th class="p-2.5">Quote (<span x-text="activeOrder.currency"></span>)</th>
+                              <th class="p-2.5">Margin</th>
+                              <th class="p-2.5">MOQ / Lead</th>
+                              <th class="p-2.5">Current Status</th>
+                              <th class="p-2.5">Sample AWB / Notes</th>
+                              <th class="p-2.5 text-center">Award</th>
+                              <th class="p-2.5"></th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-100">
+                            <template x-for="q in item.quotes" :key="q.id">
+                              <tr :class="q.is_selected ? 'bg-emerald-50/70' : ''">
+                                <!-- Supplier Contact Details -->
+                                <td class="p-2.5 align-top min-w-[190px]">
+                                  <div class="font-bold text-slate-900 text-sm" x-text="q.supplier_name"></div>
+                                  <div class="text-slate-600" x-text="q.supplier_contact"></div>
+                                  <div class="mt-0.5 flex items-center gap-1.5">
+                                    <span class="text-slate-500" x-text="q.supplier_phone"></span>
+                                    <a x-show="q.supplier_phone" :href="waLink(q.supplier_phone)" target="_blank"
+                                       class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                                  </div>
+                                  <div class="text-[11px] text-slate-400 mt-0.5" x-text="q.city_country"></div>
+                                </td>
+
+                                <!-- Quoted Price -->
+                                <td class="p-2.5 align-top">
+                                  <input type="number" step="0.01" x-model.number="q.quoted_price" @change="updateQuote(q)"
+                                         class="w-20 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
+                                </td>
+
+                                <!-- Live Margin Calculation -->
+                                <td class="p-2.5 align-top font-bold"
+                                    :class="calcMargin(item.buyer_target_price, q.quoted_price) >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                                  <span x-text="q.quoted_price > 0 && item.buyer_target_price > 0 ? `${calcMargin(item.buyer_target_price, q.quoted_price)}%` : '-'"></span>
+                                </td>
+
+                                <!-- MOQ & Lead Time -->
+                                <td class="p-2.5 align-top space-y-1">
+                                  <div class="flex items-center gap-1">
+                                    <span class="text-slate-400">MOQ:</span>
+                                    <input type="number" x-model.number="q.moq" @change="updateQuote(q)" class="w-16 border border-slate-300 rounded px-1 py-0.5" />
+                                  </div>
+                                  <div class="flex items-center gap-1">
+                                    <span class="text-slate-400">Days:</span>
+                                    <input type="number" x-model.number="q.lead_time_days" @change="updateQuote(q)" class="w-14 border border-slate-300 rounded px-1 py-0.5" />
+                                  </div>
+                                </td>
+
+                                <!-- Sample / Sourcing Status -->
+                                <td class="p-2.5 align-top">
+                                  <select x-model="q.status" @change="updateQuote(q)"
+                                          class="border border-slate-300 rounded px-2 py-1 text-xs font-medium bg-white">
+                                    <option>1 - RFQ Sent</option>
+                                    <option>2 - Quote Received</option>
+                                    <option>3 - Sample Requested</option>
+                                    <option>4 - Sample Received</option>
+                                    <option>5 - Sample Approved</option>
+                                    <option>6 - Awarded / PO Issued</option>
+                                    <option>7 - Rejected / Backup</option>
+                                  </select>
+                                </td>
+
+                                <!-- AWB & Remarks -->
+                                <td class="p-2.5 align-top space-y-1 min-w-[180px]">
+                                  <input type="text" placeholder="Sample AWB / Courier..." x-model="q.sample_awb" @change="updateQuote(q)"
+                                         class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
+                                  <input type="text" placeholder="Notes / Payment terms..." x-model="q.remarks" @change="updateQuote(q)"
+                                         class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
+                                </td>
+
+                                <!-- Select Winner -->
+                                <td class="p-2.5 align-top text-center">
+                                  <input type="checkbox" :checked="q.is_selected == 1" @change="toggleWinner(q)"
+                                         class="w-4 h-4 accent-emerald-600 cursor-pointer" title="Select winning supplier" />
+                                </td>
+
+                                <!-- Remove -->
+                                <td class="p-2.5 align-top text-right">
+                                  <button @click="deleteQuote(q.id)" class="text-slate-400 hover:text-red-600 font-bold">&times;</button>
+                                </td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ==================== TAB 2: MASTER DIRECTORY ==================== -->
+    <div x-show="activeTab === 'directory'" class="space-y-6" style="display:none;">
+      
+      <!-- Search Filter Bar -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex-1 min-w-[260px]">
+          <input type="text" x-model="directorySearch"
+                 placeholder="Search Buyers or Suppliers by company, contact, port, city, specialty, or certification..."
+                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500" />
+        </div>
+        <div class="flex gap-2">
+          <button @click="openBuyerModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-2 rounded text-xs font-semibold">+ New Buyer</button>
+          <button @click="openSupplierModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-2 rounded text-xs font-semibold">+ New Supplier</button>
+        </div>
+      </div>
+
+      <!-- SAVED SUPPLIERS TABLE -->
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="font-bold text-slate-800 text-base">Suppliers Directory (<span x-text="filteredSuppliers.length"></span>)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3">Supplier Company</th>
+                <th class="p-3">Contact Person</th>
+                <th class="p-3">Phone / WhatsApp</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">Location</th>
+                <th class="p-3">Specialties & Certifications</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredSuppliers.length === 0">
+                <tr><td colspan="7" class="p-6 text-center text-slate-400">No matching suppliers found.</td></tr>
+              </template>
+              <template x-for="s in filteredSuppliers" :key="s.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900 text-sm" x-text="s.company_name"></td>
+                  <td class="p-3 text-slate-700" x-text="s.contact_person || '-'"></td>
+                  <td class="p-3">
+                    <span x-text="s.phone_whatsapp || '-'"></span>
+                    <a x-show="s.phone_whatsapp" :href="waLink(s.phone_whatsapp)" target="_blank"
+                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                  </td>
+                  <td class="p-3 text-slate-600" x-text="s.email || '-'"></td>
+                  <td class="p-3 text-slate-600" x-text="s.city_country || '-'"></td>
+                  <td class="p-3">
+                    <div class="text-slate-800 font-medium" x-text="s.specialties || '-'"></div>
+                    <div x-show="s.certifications" class="text-[11px] text-blue-700 font-semibold mt-0.5" x-text="s.certifications"></div>
+                  </td>
+                  <td class="p-3 text-right space-x-2 whitespace-nowrap">
+                    <button @click="openSupplierModal(s)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteSupplier(s)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SAVED BUYERS TABLE -->
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="font-bold text-slate-800 text-base">Buyers Directory (<span x-text="filteredBuyers.length"></span>)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3">Buyer Company</th>
+                <th class="p-3">Contact Person</th>
+                <th class="p-3">Phone / WhatsApp</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">Destination Port</th>
+                <th class="p-3">Notes</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredBuyers.length === 0">
+                <tr><td colspan="7" class="p-6 text-center text-slate-400">No matching buyers found.</td></tr>
+              </template>
+              <template x-for="b in filteredBuyers" :key="b.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900 text-sm" x-text="b.company_name"></td>
+                  <td class="p-3 text-slate-700" x-text="b.contact_person || '-'"></td>
+                  <td class="p-3">
+                    <span x-text="b.phone_whatsapp || '-'"></span>
+                    <a x-show="b.phone_whatsapp" :href="waLink(b.phone_whatsapp)" target="_blank"
+                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                  </td>
+                  <td class="p-3 text-slate-600" x-text="b.email || '-'"></td>
+                  <td class="p-3 text-slate-600" x-text="b.destination_port || '-'"></td>
+                  <td class="p-3 text-slate-500" x-text="b.notes || '-'"></td>
+                  <td class="p-3 text-right space-x-2 whitespace-nowrap">
+                    <button @click="openBuyerModal(b)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL 1: ADD / EDIT BUYER -->
+  <div x-show="modals.buyer" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold" x-text="forms.buyer.id ? 'Edit Buyer' : 'Add New Buyer'"></h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.buyer.company_name" placeholder="Company Name *" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.contact_person" placeholder="Contact Person" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.phone_whatsapp" placeholder="Phone / WhatsApp (with country code)" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.email" placeholder="Email Address" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.destination_port" placeholder="Destination Port / City" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.notes" placeholder="Payment Terms / Notes" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.buyer = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveBuyer()" class="bg-slate-900 text-white px-4 py-2 rounded text-sm font-semibold">Save Buyer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: ADD / EDIT SUPPLIER -->
+  <div x-show="modals.supplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold" x-text="forms.supplier.id ? 'Edit Supplier' : 'Add New Supplier'"></h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.supplier.company_name" placeholder="Supplier Company Name *" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.supplier.contact_person" placeholder="Sales Contact Person" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.supplier.phone_whatsapp" placeholder="Phone / WhatsApp (e.g. 919840012345)" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.supplier.email" placeholder="Email" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.supplier.city_country" placeholder="City & Country" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.supplier.specialties" placeholder="Products / Specialties" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.supplier.certifications" placeholder="Certifications (ISO, FSSAI, APEDA, FAA...)" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.supplier = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveSupplier()" class="bg-slate-900 text-white px-4 py-2 rounded text-sm font-semibold">Save Supplier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: NEW BUYER ORDER (MULTIPLE PRODUCTS) -->
+  <div x-show="modals.order" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-bold">Create New Buyer Order</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Buyer *</label>
+          <select x-model="forms.order.buyer_id" class="w-full border rounded px-3 py-2 mt-1">
+            <option value="">Select Buyer...</option>
+            <template x-for="b in buyers" :key="b.id">
+              <option :value="b.id" x-text="b.company_name"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Order / RFQ Ref *</label>
+          <input x-model="forms.order.order_code" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Target Delivery Date</label>
+          <input type="date" x-model="forms.order.target_delivery_date" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Currency</label>
+          <select x-model="forms.order.currency" class="w-full border rounded px-3 py-2 mt-1">
+            <option>USD</option><option>INR</option><option>EUR</option><option>AED</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Incoterms</label>
+          <select x-model="forms.order.incoterms" class="w-full border rounded px-3 py-2 mt-1">
+            <option>FOB</option><option>CIF</option><option>EXW</option><option>CFR</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="border-t pt-3 space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="text-sm font-bold">Product List (Add as many as needed)</span>
+          <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-1 rounded font-semibold">+ Add Row</button>
+        </div>
+        <template x-for="(prod, i) in forms.order.products" :key="i">
+          <div class="grid grid-cols-12 gap-2 items-center text-xs">
+            <input x-model="prod.product_name" placeholder="Product Name *" class="col-span-4 border rounded px-2 py-1.5" />
+            <input x-model="prod.specifications" placeholder="Grade / Specs" class="col-span-3 border rounded px-2 py-1.5" />
+            <input type="number" x-model="prod.required_qty" placeholder="Qty" class="col-span-2 border rounded px-2 py-1.5" />
+            <input x-model="prod.unit" placeholder="Unit" class="col-span-1 border rounded px-2 py-1.5" />
+            <input type="number" step="0.01" x-model="prod.buyer_target_price" placeholder="Target Price" class="col-span-2 border rounded px-2 py-1.5" />
+          </div>
+        </template>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.order = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveOrder()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Create Buyer Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ADD SINGLE PRODUCT TO EXISTING ORDER -->
+  <div x-show="modals.addProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold">Add Product to Order</h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.singleProduct.product_name" placeholder="Product Name *" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.singleProduct.specifications" placeholder="Specifications / Grade" class="w-full border rounded px-3 py-2" />
+        <div class="grid grid-cols-2 gap-2">
+          <input type="number" x-model="forms.singleProduct.required_qty" placeholder="Required Qty" class="border rounded px-3 py-2" />
+          <input x-model="forms.singleProduct.unit" placeholder="Unit (KG, PCS, MT)" class="border rounded px-3 py-2" />
+        </div>
+        <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="Buyer Target Unit Price" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.addProduct = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveSingleProduct()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold">Add Product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: ASSIGN SUPPLIER TO PRODUCT -->
+  <div x-show="modals.assignSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold">Assign Supplier</h3>
+      <p class="text-xs text-slate-500">Product: <strong x-text="assignTargetItem?.product_name"></strong></p>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Choose from Supplier Directory *</label>
+          <select x-model="forms.quote.supplier_id" class="w-full border rounded px-3 py-2 mt-1">
+            <option value="">-- Select Supplier --</option>
+            <template x-for="s in suppliers" :key="s.id">
+              <option :value="s.id" x-text="`${s.company_name} (${s.contact_person || s.city_country})`"></option>
+            </template>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="number" step="0.01" x-model="forms.quote.quoted_price" placeholder="Quoted Price (0 if pending)" class="border rounded px-3 py-2" />
+          <input type="number" x-model="forms.quote.moq" placeholder="MOQ" class="border rounded px-3 py-2" />
+        </div>
+        <select x-model="forms.quote.status" class="w-full border rounded px-3 py-2">
+          <option>1 - RFQ Sent</option>
+          <option>2 - Quote Received</option>
+          <option>3 - Sample Requested</option>
+          <option>4 - Sample Received</option>
+          <option>5 - Sample Approved</option>
+        </select>
+        <input x-model="forms.quote.remarks" placeholder="Initial Notes" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.assignSupplier = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveAssignedSupplier()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Assign Supplier</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function sourcingApp() {
+      return {
+        activeTab: 'orders',
+        directorySearch: '',
+        buyers: [],
+        suppliers: [],
+        orders: [],
+        selectedOrderId: '',
+        expandedItems: {},
+        assignTargetItem: null,
+        modals: { buyer: false, supplier: false, order: false, addProduct: false, assignSupplier: false },
+        forms: {
+          buyer: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' },
+          supplier: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' },
+          order: { buyer_id: '', order_code: '', currency: 'USD', incoterms: 'FOB', target_delivery_date: '', products: [] },
+          singleProduct: { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+          quote: { supplier_id: '', quoted_price: '', moq: '', status: '1 - RFQ Sent', remarks: '' },
+        },
+
+        get activeOrder() {
+          return this.orders.find((o) => String(o.id) === String(this.selectedOrderId)) || null;
+        },
+
+        get filteredBuyers() {
+          const q = this.directorySearch.toLowerCase().trim();
+          if (!q) return this.buyers;
+          return this.buyers.filter((b) =>
+            [b.company_name, b.contact_person, b.phone_whatsapp, b.email, b.destination_port, b.notes]
+              .some((field) => String(field || '').toLowerCase().includes(q))
+          );
+        },
+
+        get filteredSuppliers() {
+          const q = this.directorySearch.toLowerCase().trim();
+          if (!q) return this.suppliers;
+          return this.suppliers.filter((s) =>
+            [s.company_name, s.contact_person, s.phone_whatsapp, s.email, s.city_country, s.specialties, s.certifications]
+              .some((field) => String(field || '').toLowerCase().includes(q))
+          );
+        },
+
+        async init() {
+          await this.loadAll();
+          if (this.orders.length > 0 && !this.selectedOrderId) {
+            this.selectedOrderId = this.orders[0].id;
+            if (this.orders[0].items.length > 0) {
+              this.expandedItems[this.orders[0].items[0].id] = true;
+            }
+          }
+        },
+
+        async loadAll() {
+          const [dirRes, ordRes] = await Promise.all([fetch('/api/directory'), fetch('/api/orders')]);
+          const dir = await dirRes.json();
+          this.buyers = dir.buyers;
+          this.suppliers = dir.suppliers;
+          this.orders = await ordRes.json();
+        },
+
+        toggleItem(id) {
+          this.expandedItems[id] = !this.expandedItems[id];
+        },
+
+        bestQuote(item) {
+          const valid = item.quotes.map((q) => Number(q.quoted_price)).filter((p) => p > 0);
+          return valid.length ? Math.min(...valid) : 0;
+        },
+
+        calcMargin(target, quote) {
+          if (!target || !quote) return 0;
+          return (((target - quote) / target) * 100).toFixed(1);
+        },
+
+        waLink(phone) {
+          const clean = String(phone || '').replace(/[^0-9]/g, '');
+          return clean ? `https://wa.me/${clean}` : '#';
+        },
+
+        // --- BUYER CRUD ---
+        openBuyerModal(buyer = null) {
+          this.forms.buyer = buyer
+            ? { ...buyer }
+            : { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' };
+          this.modals.buyer = true;
+        },
+
+        async saveBuyer() {
+          if (!this.forms.buyer.company_name) return alert('Company name required');
+          const isEdit = Boolean(this.forms.buyer.id);
+          const url = isEdit ? `/api/buyers/${this.forms.buyer.id}` : '/api/buyers';
+          await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.buyer),
+          });
+          this.modals.buyer = false;
+          await this.loadAll();
+        },
+
+        async deleteBuyer(buyer) {
+          if (!confirm(`Delete buyer "${buyer.company_name}"?`)) return;
+          const res = await fetch(`/api/buyers/${buyer.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not delete buyer');
+          await this.loadAll();
+        },
+
+        // --- SUPPLIER CRUD ---
+        openSupplierModal(supplier = null) {
+          this.forms.supplier = supplier
+            ? { ...supplier }
+            : { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' };
+          this.modals.supplier = true;
+        },
+
+        async saveSupplier() {
+          if (!this.forms.supplier.company_name) return alert('Supplier name required');
+          const isEdit = Boolean(this.forms.supplier.id);
+          const url = isEdit ? `/api/suppliers/${this.forms.supplier.id}` : '/api/suppliers';
+          await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.supplier),
+          });
+          this.modals.supplier = false;
+          await this.loadAll();
+        },
+
+        async deleteSupplier(supplier) {
+          if (!confirm(`Delete supplier "${supplier.company_name}"?`)) return;
+          const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not delete supplier');
+          await this.loadAll();
+        },
+
+        // --- ORDER & QUOTE CRUD ---
+        openNewOrderModal() {
+          this.forms.order = {
+            buyer_id: this.buyers[0]?.id || '',
+            order_code: `RFQ-${new Date().getFullYear()}-${String(this.orders.length + 1).padStart(3, '0')}`,
+            currency: 'USD',
+            incoterms: 'FOB',
+            target_delivery_date: '',
+            products: [
+              { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+              { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+            ],
+          };
+          this.modals.order = true;
+        },
+
+        addProductRow() {
+          this.forms.order.products.push({ product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' });
+        },
+
+        async saveOrder() {
+          if (!this.forms.order.buyer_id) return alert('Select a buyer');
+          const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.forms.order) });
+          const data = await res.json();
+          this.modals.order = false;
+          this.activeTab = 'orders';
+          await this.loadAll();
+          this.selectedOrderId = data.id;
+        },
+
+        async saveSingleProduct() {
+          if (!this.forms.singleProduct.product_name) return alert('Product name required');
+          await fetch(`/api/orders/${this.activeOrder.id}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.singleProduct),
+          });
+          this.forms.singleProduct = { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
+          this.modals.addProduct = false;
+          await this.loadAll();
+        },
+
+        async deleteProduct(itemId) {
+          if (!confirm('Remove this product and all its supplier quotes?')) return;
+          await fetch(`/api/items/${itemId}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+
+        openAssignSupplier(item) {
+          this.assignTargetItem = item;
+          this.forms.quote = { supplier_id: '', quoted_price: '', moq: '', status: '1 - RFQ Sent', remarks: '' };
+          this.modals.assignSupplier = true;
+        },
+
+        async saveAssignedSupplier() {
+          if (!this.forms.quote.supplier_id) return alert('Select a supplier');
+          await fetch(`/api/items/${this.assignTargetItem.id}/quotes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.quote),
+          });
+          this.modals.assignSupplier = false;
+          this.expandedItems[this.assignTargetItem.id] = true;
+          await this.loadAll();
+        },
+
+        async updateQuote(q) {
+          await fetch(`/api/quotes/${q.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+        },
+
+        async toggleWinner(q) {
+          q.is_selected = q.is_selected ? 0 : 1;
+          if (q.is_selected) q.status = '6 - Awarded / PO Issued';
+          await this.updateQuote(q);
+          await this.loadAll();
+        },
+
+        async deleteQuote(quoteId) {
+          await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+      };
+    }
+  </script>
+</body>
+</html>
