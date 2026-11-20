@@ -20,6 +20,7 @@ function csvCell(val) {
   return `"${str}"`;
 }
 
+// Auto-create tables on first request if they don't exist yet
 let schemaInitialized = false;
 async function ensureSchema(db) {
   if (schemaInitialized) return;
@@ -425,11 +426,31 @@ export async function onRequest(context) {
       });
     }
 
-    // 10. DELETE /api/items/:itemId
+    // 10. PUT & DELETE /api/items/:itemId
     const itemMatch = path.match(/^\/api\/items\/(\d+)$/);
-    if (itemMatch && method === 'DELETE') {
-      await db.execute({ sql: `DELETE FROM order_items WHERE id = ?`, args: [itemMatch[1]] });
-      return jsonResponse({ success: true });
+    if (itemMatch) {
+      const itemId = itemMatch[1];
+      if (method === 'PUT') {
+        const { product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
+        await db.execute({
+          sql: `UPDATE order_items
+                SET product_name = ?, specifications = ?, required_qty = ?, unit = ?, buyer_target_price = ?
+                WHERE id = ?`,
+          args: [
+            product_name,
+            specifications || '',
+            Number(required_qty) || 0,
+            unit || 'KG',
+            Number(buyer_target_price) || 0,
+            itemId,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: `DELETE FROM order_items WHERE id = ?`, args: [itemId] });
+        return jsonResponse({ success: true });
+      }
     }
 
     // 11. POST /api/items/:itemId/quotes

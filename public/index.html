@@ -47,7 +47,7 @@
   <main class="max-w-7xl mx-auto p-6 space-y-6">
 
     <!-- ==================== PAGE 1: BUYERS PAGE ==================== -->
-    <div x-show="activeTab === 'buyers'" class="space-y-5">
+    <div x-show="activeTab === 'buyers'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div class="flex-1 min-w-[260px]">
           <input type="text" x-model="buyerSearch"
@@ -177,7 +177,7 @@
     </div>
 
     <!-- ==================== PAGE 3: ACTIVE ORDERS ==================== -->
-    <div x-show="activeTab === 'orders'" class="space-y-6" style="display:none;">
+    <div x-show="activeTab === 'orders'" class="space-y-6">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3 flex-1 min-w-[260px]">
           <label class="text-sm font-semibold text-slate-600 whitespace-nowrap">Active Buyer Order:</label>
@@ -235,7 +235,7 @@
                    class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 px-3 py-2 rounded text-xs font-semibold flex items-center gap-1">
                   &#11015; Export All Quotes (CSV)
                 </a>
-                <button @click="modals.addProduct = true" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded text-sm font-medium shadow-sm">
+                <button @click="openAddProductModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded text-sm font-medium shadow-sm">
                   + Add Product to Order
                 </button>
                 <button @click="deleteOrder(activeOrder.id)" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 px-3 py-2 rounded text-xs font-semibold">
@@ -278,9 +278,12 @@
                   <div x-show="expandedItems[item.id]" class="border-t border-slate-200 p-4 bg-slate-50 space-y-3">
                     <div class="flex justify-between items-center">
                       <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Assigned Suppliers & Sample Pipeline</span>
-                      <div class="flex gap-2">
+                      <div class="flex items-center gap-2">
                         <button @click="openAssignSupplier(item)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded">
                           + Assign Supplier
+                        </button>
+                        <button @click="openEditProductModal(item)" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1.5 rounded">
+                          Edit Product
                         </button>
                         <button @click="deleteProduct(item.id)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1">Delete Product</button>
                       </div>
@@ -476,22 +479,38 @@
     </div>
   </div>
 
-  <!-- MODAL 4: ADD SINGLE PRODUCT TO EXISTING ORDER -->
+  <!-- MODAL 4: ADD / EDIT PRODUCT ON ORDER -->
   <div x-show="modals.addProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold">Add Product to Order</h3>
+      <h3 class="text-lg font-bold" x-text="forms.singleProduct.id ? 'Edit Product' : 'Add Product to Order'"></h3>
       <div class="space-y-3 text-sm">
-        <input x-model="forms.singleProduct.product_name" placeholder="Product Name *" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.singleProduct.specifications" placeholder="Specifications / Grade" class="w-full border rounded px-3 py-2" />
-        <div class="grid grid-cols-2 gap-2">
-          <input type="number" x-model="forms.singleProduct.required_qty" placeholder="Required Qty" class="border rounded px-3 py-2" />
-          <input x-model="forms.singleProduct.unit" placeholder="Unit (KG, PCS, MT)" class="border rounded px-3 py-2" />
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Product Name *</label>
+          <input x-model="forms.singleProduct.product_name" placeholder="Product Name *" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
-        <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="Buyer Target Unit Price" class="w-full border rounded px-3 py-2" />
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Specifications / Grade</label>
+          <input x-model="forms.singleProduct.specifications" placeholder="Specifications / Grade" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-500">Required Qty</label>
+            <input type="number" x-model="forms.singleProduct.required_qty" placeholder="Required Qty" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500">Unit</label>
+            <input x-model="forms.singleProduct.unit" placeholder="Unit (KG, PCS, MT)" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500">Buyer Target Unit Price</label>
+          <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="Buyer Target Unit Price" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="modals.addProduct = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
-        <button @click="saveSingleProduct()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold">Add Product</button>
+        <button @click="saveSingleProduct()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
+                x-text="forms.singleProduct.id ? 'Save Changes' : 'Add Product'"></button>
       </div>
     </div>
   </div>
@@ -534,7 +553,7 @@
   <script>
     function sourcingApp() {
       return {
-        activeTab: 'buyers',
+        activeTab: 'orders',
         buyerSearch: '',
         supplierSearch: '',
         buyers: [],
@@ -548,7 +567,7 @@
           buyer: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' },
           supplier: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' },
           order: { buyer_id: '', order_code: '', currency: 'USD', incoterms: 'FOB', target_delivery_date: '', products: [] },
-          singleProduct: { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+          singleProduct: { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
           quote: { supplier_id: '', quoted_price: '', moq: '', status: '1 - RFQ Sent', remarks: '' },
         },
 
@@ -720,14 +739,26 @@
           if (this.orders.length > 0) this.selectedOrderId = this.orders[0].id;
         },
 
+        openAddProductModal() {
+          this.forms.singleProduct = { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
+          this.modals.addProduct = true;
+        },
+
+        openEditProductModal(item) {
+          this.forms.singleProduct = { ...item };
+          this.modals.addProduct = true;
+        },
+
         async saveSingleProduct() {
           if (!this.forms.singleProduct.product_name) return alert('Product name required');
-          await fetch(`/api/orders/${this.activeOrder.id}/items`, {
-            method: 'POST',
+          const isEdit = Boolean(this.forms.singleProduct.id);
+          const url = isEdit ? `/api/items/${this.forms.singleProduct.id}` : `/api/orders/${this.activeOrder.id}/items`;
+          await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(this.forms.singleProduct),
           });
-          this.forms.singleProduct = { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
+          this.forms.singleProduct = { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
           this.modals.addProduct = false;
           await this.loadAll();
         },
