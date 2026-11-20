@@ -262,12 +262,12 @@
                     <div class="flex flex-wrap items-center gap-4 text-sm">
                       <div class="text-right">
                         <div class="text-xs text-slate-400">Buyer Target</div>
-                        <div class="font-semibold text-slate-800" x-text="`${activeOrder.currency} ${item.buyer_target_price}`"></div>
+                        <div class="font-semibold text-slate-800" x-text="`${activeOrder.currency} ${item.buyer_target_price} / ${item.unit}`"></div>
                       </div>
                       <div class="text-right">
                         <div class="text-xs text-slate-400">Best Supplier</div>
                         <div class="font-bold" :class="bestQuote(item) > 0 && bestQuote(item) <= item.buyer_target_price ? 'text-emerald-600' : 'text-slate-700'"
-                             x-text="bestQuote(item) > 0 ? `${activeOrder.currency} ${bestQuote(item)}` : 'Pending'"></div>
+                             x-text="bestQuote(item) > 0 ? `${activeOrder.currency} ${bestQuote(item)} / ${item.unit}` : 'Pending'"></div>
                       </div>
                       <span class="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full"
                             x-text="`${item.quotes.length} Supplier${item.quotes.length === 1 ? '' : 's'}`"></span>
@@ -299,9 +299,10 @@
                           <thead>
                             <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
                               <th class="p-2.5">Supplier & Contact Info</th>
-                              <th class="p-2.5">Quote (<span x-text="activeOrder.currency"></span>)</th>
+                              <th class="p-2.5">Quote (<span x-text="`${activeOrder.currency} / ${item.unit}`"></span>)</th>
                               <th class="p-2.5">Margin</th>
-                              <th class="p-2.5">MOQ / Lead</th>
+                              <th class="p-2.5">MOQ & Packaging</th>
+                              <th class="p-2.5">Lead Time</th>
                               <th class="p-2.5">Current Status</th>
                               <th class="p-2.5">Sample AWB / Notes</th>
                               <th class="p-2.5 text-center">Award</th>
@@ -311,7 +312,7 @@
                           <tbody class="divide-y divide-slate-100">
                             <template x-for="q in item.quotes" :key="q.id">
                               <tr :class="q.is_selected ? 'bg-emerald-50/70' : ''">
-                                <td class="p-2.5 align-top min-w-[190px]">
+                                <td class="p-2.5 align-top min-w-[180px]">
                                   <div class="font-bold text-slate-900 text-sm" x-text="q.supplier_name"></div>
                                   <div class="text-slate-600" x-text="q.supplier_contact"></div>
                                   <div class="mt-0.5 flex items-center gap-1.5">
@@ -321,24 +322,41 @@
                                   </div>
                                   <div class="text-[11px] text-slate-400 mt-0.5" x-text="q.city_country"></div>
                                 </td>
+
+                                <!-- Quoted Price with explicit Currency & Product Unit -->
                                 <td class="p-2.5 align-top">
-                                  <input type="number" step="0.01" x-model.number="q.quoted_price" @change="updateQuote(q)"
-                                         class="w-20 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
+                                  <div class="flex items-center gap-1">
+                                    <span class="text-[11px] font-bold text-slate-500" x-text="activeOrder.currency"></span>
+                                    <input type="number" step="0.01" x-model.number="q.quoted_price" @change="updateQuote(q)"
+                                           class="w-20 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
+                                  </div>
+                                  <div class="text-[10px] text-slate-400 mt-0.5" x-text="`per ${item.unit}`"></div>
                                 </td>
+
+                                <!-- Margin -->
                                 <td class="p-2.5 align-top font-bold"
                                     :class="calcMargin(item.buyer_target_price, q.quoted_price) >= 0 ? 'text-emerald-600' : 'text-red-600'">
                                   <span x-text="q.quoted_price > 0 && item.buyer_target_price > 0 ? `${calcMargin(item.buyer_target_price, q.quoted_price)}%` : '-'"></span>
                                 </td>
-                                <td class="p-2.5 align-top space-y-1">
+
+                                <!-- MOQ + Packaging/Unit -->
+                                <td class="p-2.5 align-top">
                                   <div class="flex items-center gap-1">
-                                    <span class="text-slate-400">MOQ:</span>
-                                    <input type="number" x-model.number="q.moq" @change="updateQuote(q)" class="w-16 border border-slate-300 rounded px-1 py-0.5" />
-                                  </div>
-                                  <div class="flex items-center gap-1">
-                                    <span class="text-slate-400">Days:</span>
-                                    <input type="number" x-model.number="q.lead_time_days" @change="updateQuote(q)" class="w-14 border border-slate-300 rounded px-1 py-0.5" />
+                                    <input type="number" x-model.number="q.moq" @change="updateQuote(q)" class="w-16 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
+                                    <input type="text" x-model="q.moq_unit" @change="updateQuote(q)" placeholder="e.g. Bag (50kg)"
+                                           class="w-24 border border-slate-300 rounded px-1.5 py-1 text-xs bg-slate-50" />
                                   </div>
                                 </td>
+
+                                <!-- Lead Time -->
+                                <td class="p-2.5 align-top">
+                                  <div class="flex items-center gap-1">
+                                    <input type="number" x-model.number="q.lead_time_days" @change="updateQuote(q)" class="w-14 border border-slate-300 rounded px-1.5 py-1 text-xs" />
+                                    <span class="text-slate-400">days</span>
+                                  </div>
+                                </td>
+
+                                <!-- Sample / Sourcing Status -->
                                 <td class="p-2.5 align-top">
                                   <select x-model="q.status" @change="updateQuote(q)"
                                           class="border border-slate-300 rounded px-2 py-1 text-xs font-medium bg-white">
@@ -351,16 +369,22 @@
                                     <option>7 - Rejected / Backup</option>
                                   </select>
                                 </td>
-                                <td class="p-2.5 align-top space-y-1 min-w-[180px]">
+
+                                <!-- AWB & Remarks -->
+                                <td class="p-2.5 align-top space-y-1 min-w-[170px]">
                                   <input type="text" placeholder="Sample AWB / Courier..." x-model="q.sample_awb" @change="updateQuote(q)"
                                          class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
                                   <input type="text" placeholder="Notes / Payment terms..." x-model="q.remarks" @change="updateQuote(q)"
                                          class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
                                 </td>
+
+                                <!-- Select Winner -->
                                 <td class="p-2.5 align-top text-center">
                                   <input type="checkbox" :checked="q.is_selected == 1" @change="toggleWinner(q)"
                                          class="w-4 h-4 accent-emerald-600 cursor-pointer" title="Select winning supplier" />
                                 </td>
+
+                                <!-- Remove -->
                                 <td class="p-2.5 align-top text-right">
                                   <button @click="deleteQuote(q.id)" class="text-slate-400 hover:text-red-600 font-bold">&times;</button>
                                 </td>
@@ -467,7 +491,7 @@
             <input x-model="prod.specifications" placeholder="Grade / Specs" class="col-span-3 border rounded px-2 py-1.5" />
             <input type="number" x-model="prod.required_qty" placeholder="Qty" class="col-span-2 border rounded px-2 py-1.5" />
             <input x-model="prod.unit" placeholder="Unit" class="col-span-1 border rounded px-2 py-1.5" />
-            <input type="number" step="0.01" x-model="prod.buyer_target_price" placeholder="Target Price" class="col-span-2 border rounded px-2 py-1.5" />
+            <input type="number" step="0.01" x-model="prod.buyer_target_price" :placeholder="`Target (${forms.order.currency})`" class="col-span-2 border rounded px-2 py-1.5" />
           </div>
         </template>
       </div>
@@ -499,12 +523,12 @@
           </div>
           <div>
             <label class="text-xs font-semibold text-slate-500">Unit</label>
-            <input x-model="forms.singleProduct.unit" placeholder="Unit (KG, PCS, MT)" class="w-full border rounded px-3 py-2 mt-1" />
+            <input x-model="forms.singleProduct.unit" placeholder="Unit (KG, PCS, MT, Bag)" class="w-full border rounded px-3 py-2 mt-1" />
           </div>
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-500">Buyer Target Unit Price</label>
-          <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="Buyer Target Unit Price" class="w-full border rounded px-3 py-2 mt-1" />
+          <label class="text-xs font-semibold text-slate-500">Buyer Target Price (<span x-text="`${activeOrder?.currency || 'USD'} per ${forms.singleProduct.unit || 'Unit'}`"></span>)</label>
+          <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="0.00" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
@@ -515,34 +539,86 @@
     </div>
   </div>
 
-  <!-- MODAL 5: ASSIGN SUPPLIER TO PRODUCT -->
+  <!-- MODAL 5: ASSIGN SUPPLIER TO PRODUCT (CLEAR CURRENCY & MOQ PACKAGING) -->
   <div x-show="modals.assignSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold">Assign Supplier</h3>
-      <p class="text-xs text-slate-500">Product: <strong x-text="assignTargetItem?.product_name"></strong></p>
+      <div>
+        <h3 class="text-lg font-bold">Assign Supplier</h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Product: <strong class="text-slate-800" x-text="assignTargetItem?.product_name"></strong>
+          &bull; Currency: <span class="font-bold text-blue-700" x-text="activeOrder?.currency || 'USD'"></span>
+        </p>
+      </div>
+
       <div class="space-y-3 text-sm">
         <div>
-          <label class="text-xs font-semibold text-slate-500">Choose from Supplier Directory *</label>
-          <select x-model="forms.quote.supplier_id" class="w-full border rounded px-3 py-2 mt-1">
+          <label class="text-xs font-semibold text-slate-600">Choose from Supplier Directory *</label>
+          <select x-model="forms.quote.supplier_id" class="w-full border rounded px-3 py-2 mt-1 bg-white">
             <option value="">-- Select Supplier --</option>
             <template x-for="s in suppliers" :key="s.id">
               <option :value="s.id" x-text="`${s.company_name} (${s.contact_person || s.city_country})`"></option>
             </template>
           </select>
         </div>
-        <div class="grid grid-cols-2 gap-2">
-          <input type="number" step="0.01" x-model="forms.quote.quoted_price" placeholder="Quoted Price (0 if pending)" class="border rounded px-3 py-2" />
-          <input type="number" x-model="forms.quote.moq" placeholder="MOQ" class="border rounded px-3 py-2" />
+
+        <!-- Explicit Currency Price -->
+        <div>
+          <label class="text-xs font-semibold text-slate-600">
+            Quoted Price in <span class="text-blue-700 font-bold" x-text="activeOrder?.currency || 'USD'"></span>
+            (per <span x-text="assignTargetItem?.unit || 'KG'"></span>)
+          </label>
+          <div class="relative mt-1">
+            <span class="absolute left-3 top-2 text-xs font-bold text-slate-500" x-text="activeOrder?.currency || 'USD'"></span>
+            <input type="number" step="0.01" x-model="forms.quote.quoted_price" placeholder="0.00 (leave 0 if pending)"
+                   class="w-full border rounded pl-12 pr-3 py-2 font-semibold" />
+          </div>
         </div>
-        <select x-model="forms.quote.status" class="w-full border rounded px-3 py-2">
-          <option>1 - RFQ Sent</option>
-          <option>2 - Quote Received</option>
-          <option>3 - Sample Requested</option>
-          <option>4 - Sample Received</option>
-          <option>5 - Sample Approved</option>
-        </select>
-        <input x-model="forms.quote.remarks" placeholder="Initial Notes" class="w-full border rounded px-3 py-2" />
+
+        <!-- Explicit MOQ + Bag/Unit Packaging -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Minimum Order Qty (MOQ)</label>
+            <input type="number" x-model="forms.quote.moq" placeholder="e.g. 1 or 500" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">MOQ Unit / Bag Size</label>
+            <input type="text" list="moq-unit-options" x-model="forms.quote.moq_unit" placeholder="e.g. Bag (50 kg)"
+                   class="w-full border rounded px-3 py-2 mt-1" />
+            <datalist id="moq-unit-options">
+              <option value="KG"></option>
+              <option value="Bag (25 kg)"></option>
+              <option value="Bag (50 kg)"></option>
+              <option value="MT"></option>
+              <option value="PCS"></option>
+              <option value="Box"></option>
+              <option value="Carton"></option>
+            </datalist>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Lead Time (Days)</label>
+            <input type="number" x-model="forms.quote.lead_time_days" placeholder="e.g. 7" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Sourcing Status</label>
+            <select x-model="forms.quote.status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+              <option>1 - RFQ Sent</option>
+              <option>2 - Quote Received</option>
+              <option>3 - Sample Requested</option>
+              <option>4 - Sample Received</option>
+              <option>5 - Sample Approved</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Initial Notes / Packaging Details</label>
+          <input x-model="forms.quote.remarks" placeholder="e.g. 1 bag = 50 kg PP woven bag, Ex-Chennai" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
       </div>
+
       <div class="flex justify-end gap-2 pt-2">
         <button @click="modals.assignSupplier = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
         <button @click="saveAssignedSupplier()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Assign Supplier</button>
@@ -568,7 +644,7 @@
           supplier: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' },
           order: { buyer_id: '', order_code: '', currency: 'USD', incoterms: 'FOB', target_delivery_date: '', products: [] },
           singleProduct: { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
-          quote: { supplier_id: '', quoted_price: '', moq: '', status: '1 - RFQ Sent', remarks: '' },
+          quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: '1 - RFQ Sent', remarks: '' },
         },
 
         get activeOrder() {
@@ -771,7 +847,15 @@
 
         openAssignSupplier(item) {
           this.assignTargetItem = item;
-          this.forms.quote = { supplier_id: '', quoted_price: '', moq: '', status: '1 - RFQ Sent', remarks: '' };
+          this.forms.quote = {
+            supplier_id: '',
+            quoted_price: '',
+            moq: '',
+            moq_unit: item.unit || 'KG',
+            lead_time_days: '',
+            status: '1 - RFQ Sent',
+            remarks: '',
+          };
           this.modals.assignSupplier = true;
         },
 

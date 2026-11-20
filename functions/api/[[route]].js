@@ -20,7 +20,7 @@ function csvCell(val) {
   return `"${str}"`;
 }
 
-// Auto-create tables on first request if they don't exist yet
+// Auto-create tables and safely add new columns on first request
 let schemaInitialized = false;
 async function ensureSchema(db) {
   if (schemaInitialized) return;
@@ -77,6 +77,7 @@ async function ensureSchema(db) {
       supplier_id INTEGER NOT NULL,
       quoted_price REAL DEFAULT 0,
       moq REAL DEFAULT 0,
+      moq_unit TEXT DEFAULT 'KG',
       lead_time_days INTEGER DEFAULT 0,
       status TEXT DEFAULT '1 - RFQ Sent',
       sample_awb TEXT DEFAULT '',
@@ -87,6 +88,14 @@ async function ensureSchema(db) {
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
     );
   `);
+
+  // Safely add moq_unit column if upgrading an existing Turso database
+  try {
+    await db.execute(`ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
+  } catch (_) {
+    // Column already exists
+  }
+
   schemaInitialized = true;
 }
 
@@ -370,7 +379,7 @@ export async function onRequest(context) {
         'Specifications', 'Required Qty', 'Unit', 'Buyer Target Price', 'Awarded?',
         'Supplier Company', 'Supplier Contact', 'Supplier Phone/WA', 'Supplier Email',
         'Supplier Location', 'Certifications', 'Supplier Quoted Price', 'Margin %',
-        'Est. Total Profit', 'MOQ', 'Lead Time (Days)', 'Sourcing Status', 'Sample AWB', 'Remarks',
+        'Est. Total Profit', 'MOQ', 'MOQ Unit', 'Lead Time (Days)', 'Sourcing Status', 'Sample AWB', 'Remarks',
       ];
 
       const rows = [headers.map(csvCell).join(',')];
@@ -388,7 +397,7 @@ export async function onRequest(context) {
               order.destination_port, order.incoterms, order.currency, order.target_delivery_date,
               idx + 1, item.product_name, item.specifications, item.required_qty, item.unit,
               item.buyer_target_price, mode === 'awarded' ? 'PENDING AWARD' : 'NO SUPPLIER',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
             ].map(csvCell).join(',')
           );
         } else {
@@ -407,7 +416,7 @@ export async function onRequest(context) {
                 item.buyer_target_price, Number(q.is_selected) === 1 ? 'YES - AWARDED' : 'No',
                 q.supplier_name, q.supplier_contact, q.supplier_phone, q.supplier_email,
                 q.city_country, q.certifications, q.quoted_price, marginPct, totalProfit,
-                q.moq, q.lead_time_days, q.status, q.sample_awb, q.remarks,
+                q.moq, q.moq_unit || item.unit, q.lead_time_days, q.status, q.sample_awb, q.remarks,
               ].map(csvCell).join(',')
             );
           }
@@ -457,15 +466,16 @@ export async function onRequest(context) {
     const itemQuotesMatch = path.match(/^\/api\/items\/(\d+)\/quotes$/);
     if (itemQuotesMatch && method === 'POST') {
       const itemId = itemQuotesMatch[1];
-      const { supplier_id, quoted_price, moq, lead_time_days, status, sample_awb, remarks } = await request.json();
+      const { supplier_id, quoted_price, moq, moq_unit, lead_time_days, status, sample_awb, remarks } = await request.json();
       const result = await db.execute({
-        sql: `INSERT INTO item_quotes (order_item_id, supplier_id, quoted_price, moq, lead_time_days, status, sample_awb, remarks)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+        sql: `INSERT INTO item_quotes (order_item_id, supplier_id, quoted_price, moq, moq_unit, lead_time_days, status, sample_awb, remarks)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
         args: [
           itemId,
           supplier_id,
           Number(quoted_price) || 0,
           Number(moq) || 0,
+          moq_unit || 'KG',
           Number(lead_time_days) || 0,
           status || '1 - RFQ Sent',
           sample_awb || '',
@@ -480,15 +490,16 @@ export async function onRequest(context) {
     if (quoteMatch) {
       const quoteId = quoteMatch[1];
       if (method === 'PUT') {
-        const { quoted_price, moq, lead_time_days, status, sample_awb, remarks, is_selected } = await request.json();
+        const { quoted_price, moq, moq_unit, lead_time_days, status, sample_awb, remarks, is_selected } = await request.json();
         await db.execute({
           sql: `UPDATE item_quotes
-                SET quoted_price = ?, moq = ?, lead_time_days = ?, status = ?,
+                SET quoted_price = ?, moq = ?, moq_unit = ?, lead_time_days = ?, status = ?,
                     sample_awb = ?, remarks = ?, is_selected = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?`,
           args: [
             Number(quoted_price) || 0,
             Number(moq) || 0,
+            moq_unit || 'KG',
             Number(lead_time_days) || 0,
             status,
             sample_awb || '',
