@@ -20,7 +20,6 @@ function csvCell(val) {
   return `"${str}"`;
 }
 
-// Auto-create tables on first request if they don't exist yet
 let schemaInitialized = false;
 async function ensureSchema(db) {
   if (schemaInitialized) return;
@@ -153,7 +152,7 @@ export async function onRequest(context) {
       if (method === 'DELETE') {
         const check = await db.execute({ sql: 'SELECT COUNT(*) AS count FROM orders WHERE buyer_id = ?', args: [buyerId] });
         if (Number(check.rows[0].count) > 0) {
-          return jsonResponse({ error: 'Cannot delete buyer: they are linked to existing orders.' }, 400);
+          return jsonResponse({ error: 'Cannot delete buyer: they are linked to existing orders. Delete their orders first.' }, 400);
         }
         await db.execute({ sql: 'DELETE FROM buyers WHERE id = ?', args: [buyerId] });
         return jsonResponse({ success: true });
