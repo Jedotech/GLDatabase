@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLDatabase — Buyers, Suppliers & Sourcing Desk</title>
+  <title>GLDatabase — Buyers, Suppliers, Orders, Ledgers & Logistics</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -11,36 +11,51 @@
 
   <!-- Top Navigation Bar -->
   <header class="bg-slate-900 text-white px-6 py-4 shadow flex flex-wrap items-center justify-between gap-4">
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-5 flex-wrap">
       <div>
         <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
-        <p class="text-xs text-slate-400">Buyers &bull; Suppliers &bull; Product Requirements & Quotes</p>
+        <p class="text-xs text-slate-400">Sourcing &bull; Buyer &amp; Supplier Ledgers &bull; Global Logistics</p>
       </div>
 
-      <!-- Separate Page Navigation Tabs -->
-      <nav class="flex bg-slate-800 p-1 rounded-lg text-xs font-semibold">
+      <!-- Navigation Tabs (Phase 1 + Phase 2) -->
+      <nav class="flex bg-slate-800 p-1 rounded-lg text-xs font-semibold flex-wrap gap-0.5">
         <button @click="activeTab = 'buyers'"
                 :class="activeTab === 'buyers' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'"
-                class="px-4 py-1.5 rounded-md transition">
+                class="px-3.5 py-1.5 rounded-md transition">
           Buyers (<span x-text="buyers.length"></span>)
         </button>
         <button @click="activeTab = 'suppliers'"
                 :class="activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'"
-                class="px-4 py-1.5 rounded-md transition">
+                class="px-3.5 py-1.5 rounded-md transition">
           Suppliers (<span x-text="suppliers.length"></span>)
         </button>
         <button @click="activeTab = 'orders'"
                 :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
-                class="px-4 py-1.5 rounded-md transition">
+                class="px-3.5 py-1.5 rounded-md transition">
           Active Orders (<span x-text="orders.length"></span>)
+        </button>
+        <button @click="activeTab = 'buyerLedger'"
+                :class="activeTab === 'buyerLedger' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Buyer Ledger (<span x-text="buyerLedger.length"></span>)
+        </button>
+        <button @click="activeTab = 'supplierLedger'"
+                :class="activeTab === 'supplierLedger' ? 'bg-amber-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Supplier Ledger (<span x-text="supplierLedger.length"></span>)
+        </button>
+        <button @click="activeTab = 'logistics'"
+                :class="activeTab === 'logistics' ? 'bg-cyan-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Logistics (<span x-text="logistics.length"></span>)
         </button>
       </nav>
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 px-3.5 py-2 rounded text-sm font-semibold shadow-sm">+ Add Buyer</button>
-      <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded text-sm font-semibold shadow-sm">+ Add Supplier</button>
-      <button @click="openNewOrderModal()" class="bg-slate-700 hover:bg-slate-600 px-3.5 py-2 rounded text-sm font-medium">+ New Buyer Order</button>
+      <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Buyer</button>
+      <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Supplier</button>
+      <button @click="openNewOrderModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-xs font-medium">+ New Buyer Order</button>
     </div>
   </header>
 
@@ -322,8 +337,6 @@
                                   </div>
                                   <div class="text-[11px] text-slate-400 mt-0.5" x-text="q.city_country"></div>
                                 </td>
-
-                                <!-- Quoted Price with explicit Currency & Product Unit -->
                                 <td class="p-2.5 align-top">
                                   <div class="flex items-center gap-1">
                                     <span class="text-[11px] font-bold text-slate-500" x-text="activeOrder.currency"></span>
@@ -332,14 +345,10 @@
                                   </div>
                                   <div class="text-[10px] text-slate-400 mt-0.5" x-text="`per ${item.unit}`"></div>
                                 </td>
-
-                                <!-- Margin -->
                                 <td class="p-2.5 align-top font-bold"
                                     :class="calcMargin(item.buyer_target_price, q.quoted_price) >= 0 ? 'text-emerald-600' : 'text-red-600'">
                                   <span x-text="q.quoted_price > 0 && item.buyer_target_price > 0 ? `${calcMargin(item.buyer_target_price, q.quoted_price)}%` : '-'"></span>
                                 </td>
-
-                                <!-- MOQ + Packaging/Unit -->
                                 <td class="p-2.5 align-top">
                                   <div class="flex items-center gap-1">
                                     <input type="number" x-model.number="q.moq" @change="updateQuote(q)" class="w-16 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
@@ -347,16 +356,12 @@
                                            class="w-24 border border-slate-300 rounded px-1.5 py-1 text-xs bg-slate-50" />
                                   </div>
                                 </td>
-
-                                <!-- Lead Time -->
                                 <td class="p-2.5 align-top">
                                   <div class="flex items-center gap-1">
                                     <input type="number" x-model.number="q.lead_time_days" @change="updateQuote(q)" class="w-14 border border-slate-300 rounded px-1.5 py-1 text-xs" />
                                     <span class="text-slate-400">days</span>
                                   </div>
                                 </td>
-
-                                <!-- Sample / Sourcing Status -->
                                 <td class="p-2.5 align-top">
                                   <select x-model="q.status" @change="updateQuote(q)"
                                           class="border border-slate-300 rounded px-2 py-1 text-xs font-medium bg-white">
@@ -369,22 +374,16 @@
                                     <option>7 - Rejected / Backup</option>
                                   </select>
                                 </td>
-
-                                <!-- AWB & Remarks -->
                                 <td class="p-2.5 align-top space-y-1 min-w-[170px]">
                                   <input type="text" placeholder="Sample AWB / Courier..." x-model="q.sample_awb" @change="updateQuote(q)"
                                          class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
                                   <input type="text" placeholder="Notes / Payment terms..." x-model="q.remarks" @change="updateQuote(q)"
                                          class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
                                 </td>
-
-                                <!-- Select Winner -->
                                 <td class="p-2.5 align-top text-center">
                                   <input type="checkbox" :checked="q.is_selected == 1" @change="toggleWinner(q)"
                                          class="w-4 h-4 accent-emerald-600 cursor-pointer" title="Select winning supplier" />
                                 </td>
-
-                                <!-- Remove -->
                                 <td class="p-2.5 align-top text-right">
                                   <button @click="deleteQuote(q.id)" class="text-slate-400 hover:text-red-600 font-bold">&times;</button>
                                 </td>
@@ -403,7 +402,203 @@
       </template>
     </div>
 
+    <!-- ==================== PHASE 2 PAGE 4: BUYER LEDGER ==================== -->
+    <div x-show="activeTab === 'buyerLedger'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Buyer Payment &amp; Invoice Ledger</h2>
+          <p class="text-xs text-slate-500">Track commercial invoices, buyer remittances, due dates, and receivable balances.</p>
+        </div>
+        <button @click="openBuyerLedgerModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
+          + Add Buyer Invoice
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">Invoice #</th>
+                <th class="p-3.5">Buyer &amp; Order</th>
+                <th class="p-3.5">Invoice Amount</th>
+                <th class="p-3.5">Received</th>
+                <th class="p-3.5">Balance Due</th>
+                <th class="p-3.5">Due Date</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Remarks</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="buyerLedger.length === 0">
+                <tr><td colspan="9" class="p-8 text-center text-slate-400">No buyer invoices recorded yet.</td></tr>
+              </template>
+              <template x-for="bl in buyerLedger" :key="bl.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900" x-text="bl.invoice_no"></td>
+                  <td class="p-3.5">
+                    <div class="font-semibold text-slate-800" x-text="bl.buyer_name"></div>
+                    <div class="text-[11px] text-slate-400" x-text="bl.order_code || 'General'"></div>
+                  </td>
+                  <td class="p-3.5 font-semibold" x-text="`${bl.currency} ${Number(bl.invoice_amount).toFixed(2)}`"></td>
+                  <td class="p-3.5 text-emerald-700 font-semibold" x-text="`${bl.currency} ${Number(bl.amount_received).toFixed(2)}`"></td>
+                  <td class="p-3.5 font-bold"
+                      :class="(Number(bl.invoice_amount) - Number(bl.amount_received)) > 0 ? 'text-red-600' : 'text-emerald-700'"
+                      x-text="`${bl.currency} ${(Number(bl.invoice_amount) - Number(bl.amount_received)).toFixed(2)}`"></td>
+                  <td class="p-3.5 text-slate-600" x-text="bl.due_date || '-'"></td>
+                  <td class="p-3.5">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          :class="bl.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : (bl.payment_status === 'Overdue' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800')"
+                          x-text="bl.payment_status"></span>
+                  </td>
+                  <td class="p-3.5 text-slate-500" x-text="bl.remarks || '-'"></td>
+                  <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
+                    <button @click="openBuyerLedgerModal(bl)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteBuyerLedger(bl.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PHASE 2 PAGE 5: SUPPLIER LEDGER ==================== -->
+    <div x-show="activeTab === 'supplierLedger'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Supplier Disbursement &amp; QC Ledger</h2>
+          <p class="text-xs text-slate-500">Track supplier purchase orders, advances/payments released, QC status, and balances.</p>
+        </div>
+        <button @click="openSupplierLedgerModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
+          + Add Supplier PO Entry
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">PO Ref</th>
+                <th class="p-3.5">Supplier &amp; Order</th>
+                <th class="p-3.5">Total Amount</th>
+                <th class="p-3.5">Paid / Advance</th>
+                <th class="p-3.5">Balance Due</th>
+                <th class="p-3.5">QC Status</th>
+                <th class="p-3.5">Payment Status</th>
+                <th class="p-3.5">Remarks</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="supplierLedger.length === 0">
+                <tr><td colspan="9" class="p-8 text-center text-slate-400">No supplier ledger entries recorded yet.</td></tr>
+              </template>
+              <template x-for="sl in supplierLedger" :key="sl.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900" x-text="sl.po_ref"></td>
+                  <td class="p-3.5">
+                    <div class="font-semibold text-slate-800" x-text="sl.supplier_name"></div>
+                    <div class="text-[11px] text-slate-400" x-text="sl.order_code || 'General'"></div>
+                  </td>
+                  <td class="p-3.5 font-semibold" x-text="`${sl.currency} ${Number(sl.total_amount).toFixed(2)}`"></td>
+                  <td class="p-3.5 text-emerald-700 font-semibold" x-text="`${sl.currency} ${Number(sl.amount_paid).toFixed(2)}`"></td>
+                  <td class="p-3.5 font-bold"
+                      :class="(Number(sl.total_amount) - Number(sl.amount_paid)) > 0 ? 'text-red-600' : 'text-emerald-700'"
+                      x-text="`${sl.currency} ${(Number(sl.total_amount) - Number(sl.amount_paid)).toFixed(2)}`"></td>
+                  <td class="p-3.5 font-medium text-slate-700" x-text="sl.qc_status"></td>
+                  <td class="p-3.5">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          :class="sl.payment_status === 'Settled' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                          x-text="sl.payment_status"></span>
+                  </td>
+                  <td class="p-3.5 text-slate-500" x-text="sl.remarks || '-'"></td>
+                  <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
+                    <button @click="openSupplierLedgerModal(sl)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteSupplierLedger(sl.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PHASE 2 PAGE 6: LOGISTICS TRACKER ==================== -->
+    <div x-show="activeTab === 'logistics'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Global Logistics &amp; Shipment Tracker</h2>
+          <p class="text-xs text-slate-500">Track container/AWB numbers, shipping bills, ETD/ETA dates, and customs/delivery milestones.</p>
+        </div>
+        <button @click="openLogisticsModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
+          + Add Shipment
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">Shipment Ref</th>
+                <th class="p-3.5">Buyer &amp; Order</th>
+                <th class="p-3.5">Route &amp; Terms</th>
+                <th class="p-3.5">Container / AWB &amp; SB #</th>
+                <th class="p-3.5">ETD / ETA</th>
+                <th class="p-3.5">Stage</th>
+                <th class="p-3.5">Remarks</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="logistics.length === 0">
+                <tr><td colspan="8" class="p-8 text-center text-slate-400">No shipments tracked yet.</td></tr>
+              </template>
+              <template x-for="ls in logistics" :key="ls.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900" x-text="ls.shipment_ref"></td>
+                  <td class="p-3.5">
+                    <div class="font-semibold text-slate-800" x-text="ls.buyer_name || '-'"></div>
+                    <div class="text-[11px] text-slate-400" x-text="ls.order_code || '-'"></div>
+                  </td>
+                  <td class="p-3.5">
+                    <div class="font-medium text-slate-800" x-text="`${ls.origin_port || '?'} &rarr; ${ls.destination_port || '?'}`"></div>
+                    <div class="text-[11px] text-slate-400" x-text="ls.incoterms"></div>
+                  </td>
+                  <td class="p-3.5">
+                    <div class="font-semibold text-slate-800" x-text="ls.container_awb || '-'"></div>
+                    <div class="text-[11px] text-slate-500" x-text="ls.shipping_bill_no ? `SB: ${ls.shipping_bill_no}` : ''"></div>
+                  </td>
+                  <td class="p-3.5 text-slate-600">
+                    <div>ETD: <span x-text="ls.etd || '-'"></span></div>
+                    <div>ETA: <span x-text="ls.eta || '-'"></span></div>
+                  </td>
+                  <td class="p-3.5">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          :class="ls.stage === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : (ls.stage === 'In Transit' ? 'bg-cyan-100 text-cyan-800' : 'bg-blue-100 text-blue-800')"
+                          x-text="ls.stage"></span>
+                  </td>
+                  <td class="p-3.5 text-slate-500" x-text="ls.remarks || '-'"></td>
+                  <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
+                    <button @click="openLogisticsModal(ls)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteLogistics(ls.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
+
+  <!-- ==================== MODALS ==================== -->
 
   <!-- MODAL 1: ADD / EDIT BUYER -->
   <div x-show="modals.buyer" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
@@ -539,7 +734,7 @@
     </div>
   </div>
 
-  <!-- MODAL 5: ASSIGN SUPPLIER TO PRODUCT (CLEAR CURRENCY & MOQ PACKAGING) -->
+  <!-- MODAL 5: ASSIGN SUPPLIER TO PRODUCT -->
   <div x-show="modals.assignSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
       <div>
@@ -561,7 +756,6 @@
           </select>
         </div>
 
-        <!-- Explicit Currency Price -->
         <div>
           <label class="text-xs font-semibold text-slate-600">
             Quoted Price in <span class="text-blue-700 font-bold" x-text="activeOrder?.currency || 'USD'"></span>
@@ -574,7 +768,6 @@
           </div>
         </div>
 
-        <!-- Explicit MOQ + Bag/Unit Packaging -->
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="text-xs font-semibold text-slate-600">Minimum Order Qty (MOQ)</label>
@@ -626,6 +819,135 @@
     </div>
   </div>
 
+  <!-- MODAL 6: PHASE 2 BUYER LEDGER -->
+  <div x-show="modals.buyerLedger" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.buyerLedger.id ? 'Edit Buyer Invoice' : 'Add Buyer Invoice'"></h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.buyerLedger.invoice_no" placeholder="Invoice Number *" class="w-full border rounded px-3 py-2" />
+        <select x-model="forms.buyerLedger.buyer_id" class="w-full border rounded px-3 py-2 bg-white">
+          <option value="">Select Buyer *</option>
+          <template x-for="b in buyers" :key="b.id">
+            <option :value="b.id" x-text="b.company_name"></option>
+          </template>
+        </select>
+        <select x-model="forms.buyerLedger.order_id" class="w-full border rounded px-3 py-2 bg-white">
+          <option value="">Link Order (Optional)</option>
+          <template x-for="o in orders" :key="o.id">
+            <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}`"></option>
+          </template>
+        </select>
+        <div class="grid grid-cols-3 gap-2">
+          <select x-model="forms.buyerLedger.currency" class="border rounded px-2 py-2 bg-white">
+            <option>USD</option><option>INR</option><option>EUR</option><option>AED</option>
+          </select>
+          <input type="number" step="0.01" x-model="forms.buyerLedger.invoice_amount" placeholder="Invoice Amt" class="border rounded px-3 py-2" />
+          <input type="number" step="0.01" x-model="forms.buyerLedger.amount_received" placeholder="Received" class="border rounded px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="date" x-model="forms.buyerLedger.due_date" class="border rounded px-3 py-2" />
+          <select x-model="forms.buyerLedger.payment_status" class="border rounded px-3 py-2 bg-white">
+            <option>Unpaid</option><option>Partial</option><option>Paid</option><option>Overdue</option>
+          </select>
+        </div>
+        <input x-model="forms.buyerLedger.remarks" placeholder="Payment reference / remarks" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.buyerLedger = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveBuyerLedger()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: PHASE 2 SUPPLIER LEDGER -->
+  <div x-show="modals.supplierLedger" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.supplierLedger.id ? 'Edit Supplier PO Entry' : 'Add Supplier PO Entry'"></h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.supplierLedger.po_ref" placeholder="Supplier PO / Bill Ref *" class="w-full border rounded px-3 py-2" />
+        <select x-model="forms.supplierLedger.supplier_id" class="w-full border rounded px-3 py-2 bg-white">
+          <option value="">Select Supplier *</option>
+          <template x-for="s in suppliers" :key="s.id">
+            <option :value="s.id" x-text="s.company_name"></option>
+          </template>
+        </select>
+        <select x-model="forms.supplierLedger.order_id" class="w-full border rounded px-3 py-2 bg-white">
+          <option value="">Link Order (Optional)</option>
+          <template x-for="o in orders" :key="o.id">
+            <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}`"></option>
+          </template>
+        </select>
+        <div class="grid grid-cols-3 gap-2">
+          <select x-model="forms.supplierLedger.currency" class="border rounded px-2 py-2 bg-white">
+            <option>INR</option><option>USD</option><option>EUR</option>
+          </select>
+          <input type="number" step="0.01" x-model="forms.supplierLedger.total_amount" placeholder="Total Amt" class="border rounded px-3 py-2" />
+          <input type="number" step="0.01" x-model="forms.supplierLedger.amount_paid" placeholder="Paid Amt" class="border rounded px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <select x-model="forms.supplierLedger.qc_status" class="border rounded px-3 py-2 bg-white">
+            <option>Pending QC</option><option>QC Passed</option><option>QC Hold</option>
+          </select>
+          <select x-model="forms.supplierLedger.payment_status" class="border rounded px-3 py-2 bg-white">
+            <option>Pending</option><option>Advance Paid</option><option>Settled</option>
+          </select>
+        </div>
+        <input x-model="forms.supplierLedger.remarks" placeholder="UTR / bank / QC notes" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.supplierLedger = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveSupplierLedger()" class="bg-amber-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: PHASE 2 LOGISTICS TRACKER -->
+  <div x-show="modals.logistics" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.logistics.id ? 'Edit Shipment' : 'Add Shipment'"></h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.logistics.shipment_ref" placeholder="Shipment / Booking Ref *" class="w-full border rounded px-3 py-2" />
+        <div class="grid grid-cols-2 gap-2">
+          <select x-model="forms.logistics.buyer_id" class="border rounded px-3 py-2 bg-white">
+            <option value="">Select Buyer</option>
+            <template x-for="b in buyers" :key="b.id">
+              <option :value="b.id" x-text="b.company_name"></option>
+            </template>
+          </select>
+          <select x-model="forms.logistics.order_id" class="border rounded px-3 py-2 bg-white">
+            <option value="">Select Order</option>
+            <template x-for="o in orders" :key="o.id">
+              <option :value="o.id" x-text="o.order_code"></option>
+            </template>
+          </select>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <input x-model="forms.logistics.origin_port" placeholder="Origin Port" class="border rounded px-3 py-2" />
+          <input x-model="forms.logistics.destination_port" placeholder="Destination Port" class="border rounded px-3 py-2" />
+          <select x-model="forms.logistics.incoterms" class="border rounded px-3 py-2 bg-white">
+            <option>FOB</option><option>CIF</option><option>EXW</option><option>CFR</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <input x-model="forms.logistics.container_awb" placeholder="Container / BL / AWB #" class="border rounded px-3 py-2" />
+          <input x-model="forms.logistics.shipping_bill_no" placeholder="Shipping Bill #" class="border rounded px-3 py-2" />
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <input type="date" x-model="forms.logistics.etd" class="border rounded px-3 py-2" />
+          <input type="date" x-model="forms.logistics.eta" class="border rounded px-3 py-2" />
+          <select x-model="forms.logistics.stage" class="border rounded px-3 py-2 bg-white">
+            <option>Booked</option><option>Customs / CHA</option><option>In Transit</option><option>Delivered</option>
+          </select>
+        </div>
+        <input x-model="forms.logistics.remarks" placeholder="CHA / carrier / customs remarks" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.logistics = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveLogistics()" class="bg-cyan-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Shipment</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function sourcingApp() {
       return {
@@ -635,16 +957,31 @@
         buyers: [],
         suppliers: [],
         orders: [],
+        buyerLedger: [],
+        supplierLedger: [],
+        logistics: [],
         selectedOrderId: '',
         expandedItems: {},
         assignTargetItem: null,
-        modals: { buyer: false, supplier: false, order: false, addProduct: false, assignSupplier: false },
+        modals: {
+          buyer: false,
+          supplier: false,
+          order: false,
+          addProduct: false,
+          assignSupplier: false,
+          buyerLedger: false,
+          supplierLedger: false,
+          logistics: false,
+        },
         forms: {
           buyer: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' },
           supplier: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' },
           order: { buyer_id: '', order_code: '', currency: 'USD', incoterms: 'FOB', target_delivery_date: '', products: [] },
           singleProduct: { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
           quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: '1 - RFQ Sent', remarks: '' },
+          buyerLedger: { id: null, invoice_no: '', buyer_id: '', order_id: '', currency: 'USD', invoice_amount: '', amount_received: '', due_date: '', payment_status: 'Unpaid', remarks: '' },
+          supplierLedger: { id: null, po_ref: '', supplier_id: '', order_id: '', currency: 'INR', total_amount: '', amount_paid: '', qc_status: 'Pending QC', payment_status: 'Pending', remarks: '' },
+          logistics: { id: null, shipment_ref: '', order_id: '', buyer_id: '', origin_port: 'Chennai', destination_port: '', incoterms: 'FOB', container_awb: '', shipping_bill_no: '', etd: '', eta: '', stage: 'Booked', remarks: '' },
         },
 
         get activeOrder() {
@@ -691,11 +1028,20 @@
         },
 
         async loadAll() {
-          const [dirRes, ordRes] = await Promise.all([fetch('/api/directory'), fetch('/api/orders')]);
+          const [dirRes, ordRes, blRes, slRes, lgRes] = await Promise.all([
+            fetch('/api/directory'),
+            fetch('/api/orders'),
+            fetch('/api/buyer-ledger'),
+            fetch('/api/supplier-ledger'),
+            fetch('/api/logistics'),
+          ]);
           const dir = await dirRes.json();
-          this.buyers = dir.buyers;
-          this.suppliers = dir.suppliers;
+          this.buyers = dir.buyers || [];
+          this.suppliers = dir.suppliers || [];
           this.orders = await ordRes.json();
+          this.buyerLedger = await blRes.json();
+          this.supplierLedger = await slRes.json();
+          this.logistics = await lgRes.json();
         },
 
         toggleItem(id) {
@@ -884,6 +1230,84 @@
 
         async deleteQuote(quoteId) {
           await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+
+        // --- PHASE 2: BUYER LEDGER CRUD ---
+        openBuyerLedgerModal(row = null) {
+          this.forms.buyerLedger = row
+            ? { ...row }
+            : { id: null, invoice_no: '', buyer_id: this.buyers[0]?.id || '', order_id: '', currency: 'USD', invoice_amount: '', amount_received: '', due_date: '', payment_status: 'Unpaid', remarks: '' };
+          this.modals.buyerLedger = true;
+        },
+
+        async saveBuyerLedger() {
+          if (!this.forms.buyerLedger.invoice_no || !this.forms.buyerLedger.buyer_id) return alert('Invoice # and Buyer are required');
+          const isEdit = Boolean(this.forms.buyerLedger.id);
+          await fetch(isEdit ? `/api/buyer-ledger/${this.forms.buyerLedger.id}` : '/api/buyer-ledger', {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.buyerLedger),
+          });
+          this.modals.buyerLedger = false;
+          await this.loadAll();
+        },
+
+        async deleteBuyerLedger(id) {
+          if (!confirm('Delete this buyer invoice entry?')) return;
+          await fetch(`/api/buyer-ledger/${id}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+
+        // --- PHASE 2: SUPPLIER LEDGER CRUD ---
+        openSupplierLedgerModal(row = null) {
+          this.forms.supplierLedger = row
+            ? { ...row }
+            : { id: null, po_ref: '', supplier_id: this.suppliers[0]?.id || '', order_id: '', currency: 'INR', total_amount: '', amount_paid: '', qc_status: 'Pending QC', payment_status: 'Pending', remarks: '' };
+          this.modals.supplierLedger = true;
+        },
+
+        async saveSupplierLedger() {
+          if (!this.forms.supplierLedger.po_ref || !this.forms.supplierLedger.supplier_id) return alert('PO Ref and Supplier are required');
+          const isEdit = Boolean(this.forms.supplierLedger.id);
+          await fetch(isEdit ? `/api/supplier-ledger/${this.forms.supplierLedger.id}` : '/api/supplier-ledger', {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.supplierLedger),
+          });
+          this.modals.supplierLedger = false;
+          await this.loadAll();
+        },
+
+        async deleteSupplierLedger(id) {
+          if (!confirm('Delete this supplier ledger entry?')) return;
+          await fetch(`/api/supplier-ledger/${id}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+
+        // --- PHASE 2: LOGISTICS CRUD ---
+        openLogisticsModal(row = null) {
+          this.forms.logistics = row
+            ? { ...row }
+            : { id: null, shipment_ref: '', order_id: '', buyer_id: this.buyers[0]?.id || '', origin_port: 'Chennai', destination_port: '', incoterms: 'FOB', container_awb: '', shipping_bill_no: '', etd: '', eta: '', stage: 'Booked', remarks: '' };
+          this.modals.logistics = true;
+        },
+
+        async saveLogistics() {
+          if (!this.forms.logistics.shipment_ref) return alert('Shipment reference is required');
+          const isEdit = Boolean(this.forms.logistics.id);
+          await fetch(isEdit ? `/api/logistics/${this.forms.logistics.id}` : '/api/logistics', {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.logistics),
+          });
+          this.modals.logistics = false;
+          await this.loadAll();
+        },
+
+        async deleteLogistics(id) {
+          if (!confirm('Delete this shipment entry?')) return;
+          await fetch(`/api/logistics/${id}`, { method: 'DELETE' });
           await this.loadAll();
         },
       };

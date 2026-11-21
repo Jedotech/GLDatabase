@@ -87,9 +87,58 @@ async function ensureSchema(db) {
       FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
     );
+
+    -- Phase 2: Buyer Payment & Invoice Ledger
+    CREATE TABLE IF NOT EXISTS buyer_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_no TEXT NOT NULL,
+      buyer_id INTEGER NOT NULL,
+      order_id INTEGER,
+      currency TEXT DEFAULT 'USD',
+      invoice_amount REAL DEFAULT 0,
+      amount_received REAL DEFAULT 0,
+      due_date TEXT DEFAULT '',
+      payment_status TEXT DEFAULT 'Unpaid',
+      remarks TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (buyer_id) REFERENCES buyers(id) ON DELETE CASCADE
+    );
+
+    -- Phase 2: Supplier Disbursement & QC Ledger
+    CREATE TABLE IF NOT EXISTS supplier_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      po_ref TEXT NOT NULL,
+      supplier_id INTEGER NOT NULL,
+      order_id INTEGER,
+      currency TEXT DEFAULT 'INR',
+      total_amount REAL DEFAULT 0,
+      amount_paid REAL DEFAULT 0,
+      qc_status TEXT DEFAULT 'Pending QC',
+      payment_status TEXT DEFAULT 'Pending',
+      remarks TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+    );
+
+    -- Phase 2: Global Logistics & Shipment Tracker
+    CREATE TABLE IF NOT EXISTS logistics_shipments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shipment_ref TEXT NOT NULL,
+      order_id INTEGER,
+      buyer_id INTEGER,
+      origin_port TEXT DEFAULT '',
+      destination_port TEXT DEFAULT '',
+      incoterms TEXT DEFAULT 'FOB',
+      container_awb TEXT DEFAULT '',
+      shipping_bill_no TEXT DEFAULT '',
+      etd TEXT DEFAULT '',
+      eta TEXT DEFAULT '',
+      stage TEXT DEFAULT 'Booked',
+      remarks TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
-  // Safely add moq_unit column if upgrading an existing Turso database
   try {
     await db.execute(`ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
   } catch (_) {
@@ -512,6 +561,210 @@ export async function onRequest(context) {
       }
       if (method === 'DELETE') {
         await db.execute({ sql: `DELETE FROM item_quotes WHERE id = ?`, args: [quoteId] });
+        return jsonResponse({ success: true });
+      }
+    }
+
+    // ==================== PHASE 2 ROUTES ====================
+
+    // 13. GET & POST /api/buyer-ledger
+    if (path === '/api/buyer-ledger') {
+      if (method === 'GET') {
+        const res = await db.execute(`
+          SELECT bl.*, b.company_name AS buyer_name, o.order_code
+          FROM buyer_ledger bl
+          JOIN buyers b ON bl.buyer_id = b.id
+          LEFT JOIN orders o ON bl.order_id = o.id
+          ORDER BY bl.id DESC
+        `);
+        return jsonResponse(res.rows);
+      }
+      if (method === 'POST') {
+        const { invoice_no, buyer_id, order_id, currency, invoice_amount, amount_received, due_date, payment_status, remarks } =
+          await request.json();
+        const res = await db.execute({
+          sql: `INSERT INTO buyer_ledger (invoice_no, buyer_id, order_id, currency, invoice_amount, amount_received, due_date, payment_status, remarks)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          args: [
+            invoice_no,
+            buyer_id,
+            order_id ? Number(order_id) : null,
+            currency || 'USD',
+            Number(invoice_amount) || 0,
+            Number(amount_received) || 0,
+            due_date || '',
+            payment_status || 'Unpaid',
+            remarks || '',
+          ],
+        });
+        return jsonResponse(res.rows[0]);
+      }
+    }
+
+    const buyerLedgerMatch = path.match(/^\/api\/buyer-ledger\/(\d+)$/);
+    if (buyerLedgerMatch) {
+      const id = buyerLedgerMatch[1];
+      if (method === 'PUT') {
+        const { invoice_no, buyer_id, order_id, currency, invoice_amount, amount_received, due_date, payment_status, remarks } =
+          await request.json();
+        await db.execute({
+          sql: `UPDATE buyer_ledger
+                SET invoice_no=?, buyer_id=?, order_id=?, currency=?, invoice_amount=?, amount_received=?, due_date=?, payment_status=?, remarks=?
+                WHERE id=?`,
+          args: [
+            invoice_no,
+            buyer_id,
+            order_id ? Number(order_id) : null,
+            currency || 'USD',
+            Number(invoice_amount) || 0,
+            Number(amount_received) || 0,
+            due_date || '',
+            payment_status || 'Unpaid',
+            remarks || '',
+            id,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: 'DELETE FROM buyer_ledger WHERE id = ?', args: [id] });
+        return jsonResponse({ success: true });
+      }
+    }
+
+    // 14. GET & POST /api/supplier-ledger
+    if (path === '/api/supplier-ledger') {
+      if (method === 'GET') {
+        const res = await db.execute(`
+          SELECT sl.*, s.company_name AS supplier_name, o.order_code
+          FROM supplier_ledger sl
+          JOIN suppliers s ON sl.supplier_id = s.id
+          LEFT JOIN orders o ON sl.order_id = o.id
+          ORDER BY sl.id DESC
+        `);
+        return jsonResponse(res.rows);
+      }
+      if (method === 'POST') {
+        const { po_ref, supplier_id, order_id, currency, total_amount, amount_paid, qc_status, payment_status, remarks } =
+          await request.json();
+        const res = await db.execute({
+          sql: `INSERT INTO supplier_ledger (po_ref, supplier_id, order_id, currency, total_amount, amount_paid, qc_status, payment_status, remarks)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          args: [
+            po_ref,
+            supplier_id,
+            order_id ? Number(order_id) : null,
+            currency || 'INR',
+            Number(total_amount) || 0,
+            Number(amount_paid) || 0,
+            qc_status || 'Pending QC',
+            payment_status || 'Pending',
+            remarks || '',
+          ],
+        });
+        return jsonResponse(res.rows[0]);
+      }
+    }
+
+    const supplierLedgerMatch = path.match(/^\/api\/supplier-ledger\/(\d+)$/);
+    if (supplierLedgerMatch) {
+      const id = supplierLedgerMatch[1];
+      if (method === 'PUT') {
+        const { po_ref, supplier_id, order_id, currency, total_amount, amount_paid, qc_status, payment_status, remarks } =
+          await request.json();
+        await db.execute({
+          sql: `UPDATE supplier_ledger
+                SET po_ref=?, supplier_id=?, order_id=?, currency=?, total_amount=?, amount_paid=?, qc_status=?, payment_status=?, remarks=?
+                WHERE id=?`,
+          args: [
+            po_ref,
+            supplier_id,
+            order_id ? Number(order_id) : null,
+            currency || 'INR',
+            Number(total_amount) || 0,
+            Number(amount_paid) || 0,
+            qc_status || 'Pending QC',
+            payment_status || 'Pending',
+            remarks || '',
+            id,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: 'DELETE FROM supplier_ledger WHERE id = ?', args: [id] });
+        return jsonResponse({ success: true });
+      }
+    }
+
+    // 15. GET & POST /api/logistics
+    if (path === '/api/logistics') {
+      if (method === 'GET') {
+        const res = await db.execute(`
+          SELECT ls.*, b.company_name AS buyer_name, o.order_code
+          FROM logistics_shipments ls
+          LEFT JOIN buyers b ON ls.buyer_id = b.id
+          LEFT JOIN orders o ON ls.order_id = o.id
+          ORDER BY ls.id DESC
+        `);
+        return jsonResponse(res.rows);
+      }
+      if (method === 'POST') {
+        const { shipment_ref, order_id, buyer_id, origin_port, destination_port, incoterms, container_awb, shipping_bill_no, etd, eta, stage, remarks } =
+          await request.json();
+        const res = await db.execute({
+          sql: `INSERT INTO logistics_shipments (shipment_ref, order_id, buyer_id, origin_port, destination_port, incoterms, container_awb, shipping_bill_no, etd, eta, stage, remarks)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          args: [
+            shipment_ref,
+            order_id ? Number(order_id) : null,
+            buyer_id ? Number(buyer_id) : null,
+            origin_port || '',
+            destination_port || '',
+            incoterms || 'FOB',
+            container_awb || '',
+            shipping_bill_no || '',
+            etd || '',
+            eta || '',
+            stage || 'Booked',
+            remarks || '',
+          ],
+        });
+        return jsonResponse(res.rows[0]);
+      }
+    }
+
+    const logisticsMatch = path.match(/^\/api\/logistics\/(\d+)$/);
+    if (logisticsMatch) {
+      const id = logisticsMatch[1];
+      if (method === 'PUT') {
+        const { shipment_ref, order_id, buyer_id, origin_port, destination_port, incoterms, container_awb, shipping_bill_no, etd, eta, stage, remarks } =
+          await request.json();
+        await db.execute({
+          sql: `UPDATE logistics_shipments
+                SET shipment_ref=?, order_id=?, buyer_id=?, origin_port=?, destination_port=?, incoterms=?,
+                    container_awb=?, shipping_bill_no=?, etd=?, eta=?, stage=?, remarks=?
+                WHERE id=?`,
+          args: [
+            shipment_ref,
+            order_id ? Number(order_id) : null,
+            buyer_id ? Number(buyer_id) : null,
+            origin_port || '',
+            destination_port || '',
+            incoterms || 'FOB',
+            container_awb || '',
+            shipping_bill_no || '',
+            etd || '',
+            eta || '',
+            stage || 'Booked',
+            remarks || '',
+            id,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: 'DELETE FROM logistics_shipments WHERE id = ?', args: [id] });
         return jsonResponse({ success: true });
       }
     }
