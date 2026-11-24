@@ -20,7 +20,14 @@ function csvCell(val) {
   return `"${str}"`;
 }
 
-// Auto-create tables and safely add new columns on first request
+async function safeAlter(db, sql) {
+  try {
+    await db.execute(sql);
+  } catch (_) {
+    // Column already exists
+  }
+}
+
 let schemaInitialized = false;
 async function ensureSchema(db) {
   if (schemaInitialized) return;
@@ -48,12 +55,38 @@ async function ensureSchema(db) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- Step 1: GL Products Master
+    CREATE TABLE IF NOT EXISTS gl_products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_name TEXT NOT NULL,
+      category TEXT DEFAULT '',
+      product_form TEXT DEFAULT '',
+      origin TEXT DEFAULT '',
+      grades_variants TEXT DEFAULT '',
+      hsn_code TEXT DEFAULT '',
+      hsn_jurisdiction TEXT DEFAULT '',
+      hsn_verification_status TEXT DEFAULT 'Unverified',
+      standard_unit TEXT DEFAULT 'MT',
+      moq REAL DEFAULT 0,
+      test_doc_checklist TEXT DEFAULT '',
+      status TEXT DEFAULT 'Under Evaluation',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_code TEXT NOT NULL,
       buyer_id INTEGER NOT NULL,
+      buyer_contact TEXT DEFAULT '',
+      enquiry_received_date TEXT DEFAULT '',
+      enquiry_source TEXT DEFAULT 'Email',
+      destination_country TEXT DEFAULT '',
       currency TEXT DEFAULT 'USD',
       incoterms TEXT DEFAULT 'FOB',
+      payment_terms TEXT DEFAULT 'TBA',
+      gl_team TEXT DEFAULT '',
+      buyer_documents TEXT DEFAULT '',
+      general_notes TEXT DEFAULT '',
       target_delivery_date TEXT,
       status TEXT DEFAULT 'Active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -63,6 +96,7 @@ async function ensureSchema(db) {
     CREATE TABLE IF NOT EXISTS order_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id INTEGER NOT NULL,
+      gl_product_id INTEGER,
       product_name TEXT NOT NULL,
       specifications TEXT,
       required_qty REAL DEFAULT 0,
@@ -88,7 +122,6 @@ async function ensureSchema(db) {
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
     );
 
-    -- Phase 2: Buyer Payment & Invoice Ledger
     CREATE TABLE IF NOT EXISTS buyer_ledger (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       invoice_no TEXT NOT NULL,
@@ -104,7 +137,6 @@ async function ensureSchema(db) {
       FOREIGN KEY (buyer_id) REFERENCES buyers(id) ON DELETE CASCADE
     );
 
-    -- Phase 2: Supplier Disbursement & QC Ledger
     CREATE TABLE IF NOT EXISTS supplier_ledger (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       po_ref TEXT NOT NULL,
@@ -120,7 +152,6 @@ async function ensureSchema(db) {
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
     );
 
-    -- Phase 2: Global Logistics & Shipment Tracker
     CREATE TABLE IF NOT EXISTS logistics_shipments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       shipment_ref TEXT NOT NULL,
@@ -139,11 +170,17 @@ async function ensureSchema(db) {
     );
   `);
 
-  try {
-    await db.execute(`ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
-  } catch (_) {
-    // Column already exists
-  }
+  // Safe migrations for existing databases
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_contact TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN enquiry_received_date TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN enquiry_source TEXT DEFAULT 'Email'`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN destination_country TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN payment_terms TEXT DEFAULT 'TBA'`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN gl_team TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_documents TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE orders ADD COLUMN general_notes TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE order_items ADD COLUMN gl_product_id INTEGER`);
 
   schemaInitialized = true;
 }
@@ -165,6 +202,100 @@ export async function onRequest(context) {
 
   try {
     await ensureSchema(db);
+
+    // 0. GL PRODUCTS MASTER (GET, POST, PUT, DELETE)
+    if (path === '/api/gl-products') {
+      if (method === 'GET') {
+        const res = await db.execute('SELECT * FROM gl_products ORDER BY product_name ASC, id DESC');
+        return jsonResponse(res.rows);
+      }
+      if (method === 'POST') {
+        const {
+          product_name,
+          category,
+          product_form,
+          origin,
+          grades_variants,
+          hsn_code,
+          hsn_jurisdiction,
+          hsn_verification_status,
+          standard_unit,
+          moq,
+          test_doc_checklist,
+          status,
+        } = await request.json();
+
+        const res = await db.execute({
+          sql: `INSERT INTO gl_products
+                (product_name, category, product_form, origin, grades_variants, hsn_code, hsn_jurisdiction, hsn_verification_status, standard_unit, moq, test_doc_checklist, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          args: [
+            product_name,
+            category || '',
+            product_form || '',
+            origin || '',
+            grades_variants || '',
+            hsn_code || '',
+            hsn_jurisdiction || '',
+            hsn_verification_status || 'Unverified',
+            standard_unit || 'MT',
+            Number(moq) || 0,
+            test_doc_checklist || '',
+            status || 'Under Evaluation',
+          ],
+        });
+        return jsonResponse(res.rows[0]);
+      }
+    }
+
+    const glProdMatch = path.match(/^\/api\/gl-products\/(\d+)$/);
+    if (glProdMatch) {
+      const id = glProdMatch[1];
+      if (method === 'PUT') {
+        const {
+          product_name,
+          category,
+          product_form,
+          origin,
+          grades_variants,
+          hsn_code,
+          hsn_jurisdiction,
+          hsn_verification_status,
+          standard_unit,
+          moq,
+          test_doc_checklist,
+          status,
+        } = await request.json();
+
+        await db.execute({
+          sql: `UPDATE gl_products
+                SET product_name=?, category=?, product_form=?, origin=?, grades_variants=?,
+                    hsn_code=?, hsn_jurisdiction=?, hsn_verification_status=?,
+                    standard_unit=?, moq=?, test_doc_checklist=?, status=?
+                WHERE id=?`,
+          args: [
+            product_name,
+            category || '',
+            product_form || '',
+            origin || '',
+            grades_variants || '',
+            hsn_code || '',
+            hsn_jurisdiction || '',
+            hsn_verification_status || 'Unverified',
+            standard_unit || 'MT',
+            Number(moq) || 0,
+            test_doc_checklist || '',
+            status || 'Under Evaluation',
+            id,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: 'DELETE FROM gl_products WHERE id = ?', args: [id] });
+        return jsonResponse({ success: true });
+      }
+    }
 
     // 1. GET /api/directory
     if (path === '/api/directory' && method === 'GET') {
@@ -275,11 +406,11 @@ export async function onRequest(context) {
       }
     }
 
-    // 6. GET & POST /api/orders
+    // 6. GET & POST /api/orders (Buyer Enquiry / Order)
     if (path === '/api/orders') {
       if (method === 'GET') {
         const ordersRes = await db.execute(`
-          SELECT o.*, b.company_name AS buyer_name, b.contact_person AS buyer_contact,
+          SELECT o.*, b.company_name AS buyer_name, b.contact_person AS default_buyer_contact,
                  b.phone_whatsapp AS buyer_phone, b.email AS buyer_email, b.destination_port
           FROM orders o
           JOIN buyers b ON o.buyer_id = b.id
@@ -311,6 +442,7 @@ export async function onRequest(context) {
 
         const fullOrders = ordersRes.rows.map((order) => ({
           ...order,
+          buyer_contact: order.buyer_contact || order.default_buyer_contact || '',
           items: itemsByOrder[order.id] || [],
         }));
 
@@ -318,11 +450,46 @@ export async function onRequest(context) {
       }
 
       if (method === 'POST') {
-        const { order_code, buyer_id, currency, incoterms, target_delivery_date, products } = await request.json();
+        const {
+          order_code,
+          buyer_id,
+          buyer_contact,
+          enquiry_received_date,
+          enquiry_source,
+          destination_country,
+          currency,
+          incoterms,
+          payment_terms,
+          gl_team,
+          buyer_documents,
+          general_notes,
+          target_delivery_date,
+          products,
+        } = await request.json();
+
+        if (!destination_country || !String(destination_country).trim()) {
+          return jsonResponse({ error: 'Destination Country is required.' }, 400);
+        }
+
         const orderRes = await db.execute({
-          sql: `INSERT INTO orders (order_code, buyer_id, currency, incoterms, target_delivery_date)
-                VALUES (?, ?, ?, ?, ?) RETURNING *`,
-          args: [order_code, buyer_id, currency || 'USD', incoterms || 'FOB', target_delivery_date || ''],
+          sql: `INSERT INTO orders
+                (order_code, buyer_id, buyer_contact, enquiry_received_date, enquiry_source, destination_country, currency, incoterms, payment_terms, gl_team, buyer_documents, general_notes, target_delivery_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          args: [
+            order_code,
+            buyer_id,
+            buyer_contact || '',
+            enquiry_received_date || '',
+            enquiry_source || 'Email',
+            String(destination_country).trim(),
+            currency || 'USD',
+            incoterms || 'FOB',
+            payment_terms || 'TBA',
+            gl_team || '',
+            buyer_documents || '',
+            general_notes || '',
+            target_delivery_date || '',
+          ],
         });
         const orderId = orderRes.rows[0].id;
 
@@ -330,14 +497,15 @@ export async function onRequest(context) {
           for (const p of products) {
             if (!p.product_name || !p.product_name.trim()) continue;
             await db.execute({
-              sql: `INSERT INTO order_items (order_id, product_name, specifications, required_qty, unit, buyer_target_price)
-                    VALUES (?, ?, ?, ?, ?, ?)`,
+              sql: `INSERT INTO order_items (order_id, gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
               args: [
                 orderId,
+                p.gl_product_id ? Number(p.gl_product_id) : null,
                 p.product_name.trim(),
                 p.specifications || '',
                 Number(p.required_qty) || 0,
-                p.unit || 'KG',
+                p.unit || 'MT',
                 Number(p.buyer_target_price) || 0,
               ],
             });
@@ -364,16 +532,17 @@ export async function onRequest(context) {
     const orderItemsMatch = path.match(/^\/api\/orders\/(\d+)\/items$/);
     if (orderItemsMatch && method === 'POST') {
       const orderId = orderItemsMatch[1];
-      const { product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
+      const { gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
       const result = await db.execute({
-        sql: `INSERT INTO order_items (order_id, product_name, specifications, required_qty, unit, buyer_target_price)
-              VALUES (?, ?, ?, ?, ?, ?) RETURNING *`,
+        sql: `INSERT INTO order_items (order_id, gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price)
+              VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
         args: [
           orderId,
+          gl_product_id ? Number(gl_product_id) : null,
           product_name,
           specifications || '',
           Number(required_qty) || 0,
-          unit || 'KG',
+          unit || 'MT',
           Number(buyer_target_price) || 0,
         ],
       });
@@ -387,7 +556,7 @@ export async function onRequest(context) {
       const mode = url.searchParams.get('mode') === 'awarded' ? 'awarded' : 'all';
 
       const orderRes = await db.execute({
-        sql: `SELECT o.*, b.company_name AS buyer_name, b.contact_person AS buyer_contact,
+        sql: `SELECT o.*, b.company_name AS buyer_name, b.contact_person AS default_buyer_contact,
                      b.phone_whatsapp AS buyer_phone, b.email AS buyer_email, b.destination_port
               FROM orders o
               JOIN buyers b ON o.buyer_id = b.id
@@ -399,6 +568,7 @@ export async function onRequest(context) {
         return new Response('Order not found', { status: 404 });
       }
       const order = orderRes.rows[0];
+      const buyerContact = order.buyer_contact || order.default_buyer_contact || '';
 
       const itemsRes = await db.execute({
         sql: `SELECT * FROM order_items WHERE order_id = ? ORDER BY id ASC`,
@@ -423,8 +593,10 @@ export async function onRequest(context) {
       }
 
       const headers = [
-        'Order Code', 'Buyer Company', 'Buyer Contact', 'Buyer Phone', 'Destination Port',
-        'Incoterms', 'Currency', 'Delivery Deadline', 'Product #', 'Product Name',
+        'RFQ / Enquiry Ref', 'Buyer Company', 'Buyer Contact', 'Buyer Phone',
+        'Enquiry Received Date', 'Enquiry Source', 'Destination Country', 'Destination Port',
+        'Incoterms', 'Currency', 'Payment Terms', 'GL Team', 'Delivery Deadline',
+        'Buyer Documents', 'General Notes', 'Product #', 'Product Name',
         'Specifications', 'Required Qty', 'Unit', 'Buyer Target Price', 'Awarded?',
         'Supplier Company', 'Supplier Contact', 'Supplier Phone/WA', 'Supplier Email',
         'Supplier Location', 'Certifications', 'Supplier Quoted Price', 'Margin %',
@@ -442,8 +614,10 @@ export async function onRequest(context) {
         if (itemQuotes.length === 0) {
           rows.push(
             [
-              order.order_code, order.buyer_name, order.buyer_contact, order.buyer_phone,
-              order.destination_port, order.incoterms, order.currency, order.target_delivery_date,
+              order.order_code, order.buyer_name, buyerContact, order.buyer_phone,
+              order.enquiry_received_date, order.enquiry_source, order.destination_country,
+              order.destination_port, order.incoterms, order.currency, order.payment_terms,
+              order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
               idx + 1, item.product_name, item.specifications, item.required_qty, item.unit,
               item.buyer_target_price, mode === 'awarded' ? 'PENDING AWARD' : 'NO SUPPLIER',
               '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
@@ -459,8 +633,10 @@ export async function onRequest(context) {
 
             rows.push(
               [
-                order.order_code, order.buyer_name, order.buyer_contact, order.buyer_phone,
-                order.destination_port, order.incoterms, order.currency, order.target_delivery_date,
+                order.order_code, order.buyer_name, buyerContact, order.buyer_phone,
+                order.enquiry_received_date, order.enquiry_source, order.destination_country,
+                order.destination_port, order.incoterms, order.currency, order.payment_terms,
+                order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
                 idx + 1, item.product_name, item.specifications, item.required_qty, item.unit,
                 item.buyer_target_price, Number(q.is_selected) === 1 ? 'YES - AWARDED' : 'No',
                 q.supplier_name, q.supplier_contact, q.supplier_phone, q.supplier_email,
@@ -489,16 +665,17 @@ export async function onRequest(context) {
     if (itemMatch) {
       const itemId = itemMatch[1];
       if (method === 'PUT') {
-        const { product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
+        const { gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
         await db.execute({
           sql: `UPDATE order_items
-                SET product_name = ?, specifications = ?, required_qty = ?, unit = ?, buyer_target_price = ?
+                SET gl_product_id = ?, product_name = ?, specifications = ?, required_qty = ?, unit = ?, buyer_target_price = ?
                 WHERE id = ?`,
           args: [
+            gl_product_id ? Number(gl_product_id) : null,
             product_name,
             specifications || '',
             Number(required_qty) || 0,
-            unit || 'KG',
+            unit || 'MT',
             Number(buyer_target_price) || 0,
             itemId,
           ],
@@ -566,8 +743,6 @@ export async function onRequest(context) {
     }
 
     // ==================== PHASE 2 ROUTES ====================
-
-    // 13. GET & POST /api/buyer-ledger
     if (path === '/api/buyer-ledger') {
       if (method === 'GET') {
         const res = await db.execute(`
@@ -632,7 +807,6 @@ export async function onRequest(context) {
       }
     }
 
-    // 14. GET & POST /api/supplier-ledger
     if (path === '/api/supplier-ledger') {
       if (method === 'GET') {
         const res = await db.execute(`
@@ -697,7 +871,6 @@ export async function onRequest(context) {
       }
     }
 
-    // 15. GET & POST /api/logistics
     if (path === '/api/logistics') {
       if (method === 'GET') {
         const res = await db.execute(`
