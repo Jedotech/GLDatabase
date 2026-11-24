@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLDatabase — Buyers, Suppliers, Orders, Ledgers & Logistics</title>
+  <title>GLDatabase — GL Products, Buyer Enquiries, Suppliers & Ledgers</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -14,11 +14,21 @@
     <div class="flex items-center gap-5 flex-wrap">
       <div>
         <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
-        <p class="text-xs text-slate-400">Sourcing &bull; Buyer &amp; Supplier Ledgers &bull; Global Logistics</p>
+        <p class="text-xs text-slate-400">GL Products &rarr; Buyer Enquiry/Order &rarr; Quotes &rarr; Award &rarr; Ledger &rarr; Logistics</p>
       </div>
 
-      <!-- Navigation Tabs (Phase 1 + Phase 2) -->
+      <!-- Navigation Tabs -->
       <nav class="flex bg-slate-800 p-1 rounded-lg text-xs font-semibold flex-wrap gap-0.5">
+        <button @click="activeTab = 'glProducts'"
+                :class="activeTab === 'glProducts' ? 'bg-teal-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          GL Products (<span x-text="glProducts.length"></span>)
+        </button>
+        <button @click="activeTab = 'orders'"
+                :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Buyer Enquiry/Order (<span x-text="orders.length"></span>)
+        </button>
         <button @click="activeTab = 'buyers'"
                 :class="activeTab === 'buyers' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
@@ -28,11 +38,6 @@
                 :class="activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
           Suppliers (<span x-text="suppliers.length"></span>)
-        </button>
-        <button @click="activeTab = 'orders'"
-                :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
-                class="px-3.5 py-1.5 rounded-md transition">
-          Active Orders (<span x-text="orders.length"></span>)
         </button>
         <button @click="activeTab = 'buyerLedger'"
                 :class="activeTab === 'buyerLedger' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'"
@@ -53,71 +58,96 @@
     </div>
 
     <div class="flex flex-wrap gap-2">
+      <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add GL Product</button>
+      <button @click="openNewOrderModal()" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded text-xs font-semibold shadow-sm">+ New Buyer Enquiry</button>
       <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Buyer</button>
-      <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Supplier</button>
-      <button @click="openNewOrderModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-xs font-medium">+ New Buyer Order</button>
+      <button @click="openSupplierModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-xs font-medium">+ Add Supplier</button>
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto p-6 space-y-6">
 
-    <!-- ==================== PAGE 1: BUYERS PAGE ==================== -->
-    <div x-show="activeTab === 'buyers'" class="space-y-5" style="display:none;">
+    <!-- ==================== STEP 1: GL PRODUCTS MASTER ==================== -->
+    <div x-show="activeTab === 'glProducts'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex-1 min-w-[260px]">
-          <input type="text" x-model="buyerSearch"
-                 placeholder="Search Buyers by company name, contact person, phone, email, or destination port..."
-                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500" />
+        <div class="flex-1 min-w-[260px] flex flex-wrap gap-2">
+          <input type="text" x-model="glProductSearch"
+                 placeholder="Search GL Products by name, category, form, origin, grade, HSN, or checklist..."
+                 class="flex-1 min-w-[220px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-teal-500" />
+          <select x-model="glProductStatusFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
+            <option value="ALL">All Statuses</option>
+            <option>Under Evaluation</option>
+            <option>Sourcing in Progress</option>
+            <option>Ready to Offer</option>
+            <option>On Hold</option>
+            <option>Discontinued</option>
+          </select>
         </div>
-        <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
-          + Add Buyer
+        <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
+          + Add GL Product
         </button>
       </div>
 
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-          <h2 class="font-bold text-slate-800 text-base">Buyers List (<span x-text="filteredBuyers.length"></span>)</h2>
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">GL Products Master (<span x-text="filteredGlProducts.length"></span>)</h2>
+            <p class="text-xs text-slate-500">Enter each product once here, then select it when creating buyer enquiries or searching suppliers.</p>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Buyer Company</th>
-                <th class="p-3.5">Contact Person</th>
-                <th class="p-3.5">Phone / WhatsApp</th>
-                <th class="p-3.5">Email</th>
-                <th class="p-3.5">Destination Port</th>
-                <th class="p-3.5">Wanted Products (From Orders)</th>
-                <th class="p-3.5">Notes</th>
+                <th class="p-3.5">Product &amp; Category</th>
+                <th class="p-3.5">Form &amp; Origin</th>
+                <th class="p-3.5">Grades / Variants</th>
+                <th class="p-3.5">HSN &amp; Jurisdiction</th>
+                <th class="p-3.5">Unit &amp; MOQ</th>
+                <th class="p-3.5">Test / Doc Checklist</th>
+                <th class="p-3.5">Status</th>
                 <th class="p-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <template x-if="filteredBuyers.length === 0">
+              <template x-if="filteredGlProducts.length === 0">
                 <tr>
                   <td colspan="8" class="p-8 text-center text-slate-400">
-                    No buyers found. Click <strong>+ Add Buyer</strong> to add your first buyer.
+                    No GL Products found. Click <strong>+ Add GL Product</strong> to create your master product list.
                   </td>
                 </tr>
               </template>
-              <template x-for="b in filteredBuyers" :key="b.id">
+              <template x-for="gp in filteredGlProducts" :key="gp.id">
                 <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="b.company_name"></td>
-                  <td class="p-3.5 text-slate-700" x-text="b.contact_person || '-'"></td>
-                  <td class="p-3.5">
-                    <span x-text="b.phone_whatsapp || '-'"></span>
-                    <a x-show="b.phone_whatsapp" :href="waLink(b.phone_whatsapp)" target="_blank"
-                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                  <td class="p-3.5 align-top">
+                    <div class="font-bold text-slate-900 text-sm" x-text="gp.product_name"></div>
+                    <div class="text-slate-500" x-text="gp.category || '-'"></div>
                   </td>
-                  <td class="p-3.5 text-slate-600" x-text="b.email || '-'"></td>
-                  <td class="p-3.5 text-slate-600" x-text="b.destination_port || '-'"></td>
-                  <td class="p-3.5">
-                    <span class="text-slate-700 font-medium" x-text="buyerProductsSummary(b.id)"></span>
+                  <td class="p-3.5 align-top">
+                    <div class="font-medium text-slate-800" x-text="gp.product_form || '-'"></div>
+                    <div class="text-slate-500" x-text="gp.origin ? `Origin: ${gp.origin}` : ''"></div>
                   </td>
-                  <td class="p-3.5 text-slate-500" x-text="b.notes || '-'"></td>
-                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
-                    <button @click="openBuyerModal(b)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  <td class="p-3.5 align-top font-medium text-slate-800" x-text="gp.grades_variants || '-'"></td>
+                  <td class="p-3.5 align-top">
+                    <div class="font-semibold text-slate-800" x-text="gp.hsn_code || '-'"></div>
+                    <div class="text-[11px] text-slate-500" x-text="gp.hsn_jurisdiction || ''"></div>
+                    <span class="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold"
+                          :class="gp.hsn_verification_status === 'Verified' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                          x-text="gp.hsn_verification_status || 'Unverified'"></span>
+                  </td>
+                  <td class="p-3.5 align-top">
+                    <div class="font-semibold text-slate-800" x-text="`Unit: ${gp.standard_unit || 'MT'}`"></div>
+                    <div class="text-slate-500" x-text="`MOQ: ${gp.moq || 0} ${gp.standard_unit || 'MT'}`"></div>
+                  </td>
+                  <td class="p-3.5 align-top text-slate-600 max-w-[220px]" x-text="gp.test_doc_checklist || '-'"></td>
+                  <td class="p-3.5 align-top">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          :class="glStatusBadge(gp.status)"
+                          x-text="gp.status"></span>
+                  </td>
+                  <td class="p-3.5 align-top text-right space-x-2 whitespace-nowrap">
+                    <button @click="openGlProductModal(gp)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteGlProduct(gp.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
                   </td>
                 </tr>
               </template>
@@ -127,95 +157,31 @@
       </div>
     </div>
 
-    <!-- ==================== PAGE 2: SUPPLIERS PAGE ==================== -->
-    <div x-show="activeTab === 'suppliers'" class="space-y-5" style="display:none;">
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex-1 min-w-[260px]">
-          <input type="text" x-model="supplierSearch"
-                 placeholder="Search Suppliers by company name, contact person, city/country, products supplied, or certifications..."
-                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
-        </div>
-        <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
-          + Add Supplier
-        </button>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-          <h2 class="font-bold text-slate-800 text-base">Suppliers List (<span x-text="filteredSuppliers.length"></span>)</h2>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Supplier Company</th>
-                <th class="p-3.5">Contact Person</th>
-                <th class="p-3.5">Phone / WhatsApp</th>
-                <th class="p-3.5">Email</th>
-                <th class="p-3.5">Location</th>
-                <th class="p-3.5">Products Supplied / Specialties</th>
-                <th class="p-3.5">Certifications</th>
-                <th class="p-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <template x-if="filteredSuppliers.length === 0">
-                <tr>
-                  <td colspan="8" class="p-8 text-center text-slate-400">
-                    No suppliers found. Click <strong>+ Add Supplier</strong> to add your first supplier.
-                  </td>
-                </tr>
-              </template>
-              <template x-for="s in filteredSuppliers" :key="s.id">
-                <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="s.company_name"></td>
-                  <td class="p-3.5 text-slate-700" x-text="s.contact_person || '-'"></td>
-                  <td class="p-3.5">
-                    <span x-text="s.phone_whatsapp || '-'"></span>
-                    <a x-show="s.phone_whatsapp" :href="waLink(s.phone_whatsapp)" target="_blank"
-                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
-                  </td>
-                  <td class="p-3.5 text-slate-600" x-text="s.email || '-'"></td>
-                  <td class="p-3.5 text-slate-600" x-text="s.city_country || '-'"></td>
-                  <td class="p-3.5 text-slate-800 font-medium" x-text="s.specialties || '-'"></td>
-                  <td class="p-3.5 text-blue-700 font-semibold" x-text="s.certifications || '-'"></td>
-                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
-                    <button @click="openSupplierModal(s)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteSupplier(s)" class="text-red-600 hover:underline font-semibold">Delete</button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== PAGE 3: ACTIVE ORDERS ==================== -->
-    <div x-show="activeTab === 'orders'" class="space-y-6">
+    <!-- ==================== STEP 2: BUYER ENQUIRY / ORDER ==================== -->
+    <div x-show="activeTab === 'orders'" class="space-y-6" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3 flex-1 min-w-[260px]">
-          <label class="text-sm font-semibold text-slate-600 whitespace-nowrap">Active Buyer Order:</label>
+          <label class="text-sm font-semibold text-slate-600 whitespace-nowrap">Buyer Enquiry / Order:</label>
           <select x-model="selectedOrderId" class="border border-slate-300 rounded px-3 py-2 text-sm w-full max-w-md bg-slate-50 font-medium">
-            <option value="">-- Select a Buyer Order --</option>
+            <option value="">-- Select a Buyer Enquiry / Order --</option>
             <template x-for="o in orders" :key="o.id">
-              <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name} (${o.items.length} products)`"></option>
+              <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}${o.destination_country ? ' (' + o.destination_country + ')' : ''} (${o.items.length} products)`"></option>
             </template>
           </select>
         </div>
         <button @click="openNewOrderModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm">
-          + New Buyer Order
+          + New Buyer Enquiry
         </button>
       </div>
 
       <template x-if="!activeOrder">
         <div class="bg-white rounded-lg border border-dashed border-slate-300 p-12 text-center space-y-3">
-          <p class="text-lg font-semibold text-slate-700">No Buyer Order Selected</p>
-          <p class="text-sm text-slate-500">Add a Buyer and Suppliers first, then create a Buyer Order with multiple products.</p>
-          <div class="pt-2 flex justify-center gap-3">
-            <button @click="openBuyerModal()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">1. Add Buyer</button>
-            <button @click="openSupplierModal()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm">2. Add Suppliers</button>
-            <button @click="openNewOrderModal()" class="bg-slate-800 text-white px-4 py-2 rounded text-sm">3. Create Order</button>
+          <p class="text-lg font-semibold text-slate-700">No Buyer Enquiry / Order Selected</p>
+          <p class="text-sm text-slate-500">Add GL Products and a Buyer first, then create a Buyer Enquiry/Order.</p>
+          <div class="pt-2 flex justify-center gap-3 flex-wrap">
+            <button @click="openGlProductModal()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm">1. Add GL Product</button>
+            <button @click="openBuyerModal()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">2. Add Buyer</button>
+            <button @click="openNewOrderModal()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm">3. New Buyer Enquiry</button>
           </div>
         </div>
       </template>
@@ -224,20 +190,33 @@
         <div class="space-y-4">
           <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
             <div class="flex flex-wrap justify-between items-start gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <div class="flex items-center gap-2">
+              <div class="space-y-2 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded" x-text="activeOrder.order_code"></span>
                   <h2 class="text-xl font-bold text-slate-900" x-text="activeOrder.buyer_name"></h2>
+                  <span x-show="activeOrder.enquiry_source" class="bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded" x-text="`Source: ${activeOrder.enquiry_source}`"></span>
+                  <span x-show="activeOrder.gl_team" class="bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold px-2 py-0.5 rounded" x-text="`Team: ${activeOrder.gl_team}`"></span>
                 </div>
-                <div class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
-                  <span><strong>Contact:</strong> <span x-text="activeOrder.buyer_contact || 'N/A'"></span></span>
+
+                <div class="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600">
+                  <span><strong>Buyer Contact:</strong> <span x-text="activeOrder.buyer_contact || 'N/A'"></span></span>
                   <span x-show="activeOrder.buyer_phone">
                     <strong>Phone:</strong> <span x-text="activeOrder.buyer_phone"></span>
-                    <a :href="waLink(activeOrder.buyer_phone)" target="_blank" class="ml-1 text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded hover:bg-green-200">WhatsApp</a>
+                    <a :href="waLink(activeOrder.buyer_phone)" target="_blank" class="ml-1 text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-bold hover:bg-green-200">WA</a>
                   </span>
-                  <span><strong>Port:</strong> <span x-text="activeOrder.destination_port || 'N/A'"></span></span>
+                  <span><strong>Received:</strong> <span x-text="activeOrder.enquiry_received_date || 'N/A'"></span></span>
+                  <span><strong>Destination Country:</strong> <span class="font-semibold text-slate-800" x-text="activeOrder.destination_country || 'N/A'"></span></span>
+                  <span><strong>Port / City:</strong> <span x-text="activeOrder.destination_port || 'N/A'"></span></span>
                   <span><strong>Terms:</strong> <span x-text="`${activeOrder.incoterms} (${activeOrder.currency})`"></span></span>
-                  <span><strong>Deadline:</strong> <span x-text="activeOrder.target_delivery_date || 'Open'"></span></span>
+                  <span><strong>Payment:</strong> <span x-text="activeOrder.payment_terms || 'TBA'"></span></span>
+                  <span><strong>Delivery Target:</strong> <span x-text="activeOrder.target_delivery_date || 'Open'"></span></span>
+                </div>
+
+                <div x-show="activeOrder.buyer_documents" class="text-xs text-slate-600">
+                  <strong>Buyer Documents:</strong> <span class="text-blue-700 break-all" x-text="activeOrder.buyer_documents"></span>
+                </div>
+                <div x-show="activeOrder.general_notes" class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded p-2.5">
+                  <strong>General Notes / Requirements:</strong> <span x-text="activeOrder.general_notes"></span>
                 </div>
               </div>
 
@@ -251,14 +230,15 @@
                   &#11015; Export All Quotes (CSV)
                 </a>
                 <button @click="openAddProductModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded text-sm font-medium shadow-sm">
-                  + Add Product to Order
+                  + Add Product to Enquiry
                 </button>
                 <button @click="deleteOrder(activeOrder.id)" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 px-3 py-2 rounded text-xs font-semibold">
-                  Delete Order
+                  Delete Enquiry
                 </button>
               </div>
             </div>
 
+            <!-- PRODUCT LINE ITEMS -->
             <div class="mt-4 space-y-3">
               <template x-for="(item, idx) in activeOrder.items" :key="item.id">
                 <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
@@ -291,8 +271,8 @@
                   </div>
 
                   <div x-show="expandedItems[item.id]" class="border-t border-slate-200 p-4 bg-slate-50 space-y-3">
-                    <div class="flex justify-between items-center">
-                      <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Assigned Suppliers & Sample Pipeline</span>
+                    <div class="flex justify-between items-center flex-wrap gap-2">
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Assigned Suppliers &amp; Sample Pipeline</span>
                       <div class="flex items-center gap-2">
                         <button @click="openAssignSupplier(item)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded">
                           + Assign Supplier
@@ -313,10 +293,10 @@
                         <table class="w-full text-left border-collapse text-xs">
                           <thead>
                             <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                              <th class="p-2.5">Supplier & Contact Info</th>
+                              <th class="p-2.5">Supplier &amp; Contact Info</th>
                               <th class="p-2.5">Quote (<span x-text="`${activeOrder.currency} / ${item.unit}`"></span>)</th>
                               <th class="p-2.5">Margin</th>
-                              <th class="p-2.5">MOQ & Packaging</th>
+                              <th class="p-2.5">MOQ &amp; Packaging</th>
                               <th class="p-2.5">Lead Time</th>
                               <th class="p-2.5">Current Status</th>
                               <th class="p-2.5">Sample AWB / Notes</th>
@@ -402,7 +382,137 @@
       </template>
     </div>
 
-    <!-- ==================== PHASE 2 PAGE 4: BUYER LEDGER ==================== -->
+    <!-- ==================== BUYERS PAGE ==================== -->
+    <div x-show="activeTab === 'buyers'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex-1 min-w-[260px]">
+          <input type="text" x-model="buyerSearch"
+                 placeholder="Search Buyers by company name, contact person, phone, email, or destination port..."
+                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500" />
+        </div>
+        <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+          + Add Buyer
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="font-bold text-slate-800 text-base">Buyers List (<span x-text="filteredBuyers.length"></span>)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">Buyer Company</th>
+                <th class="p-3.5">Contact Person</th>
+                <th class="p-3.5">Phone / WhatsApp</th>
+                <th class="p-3.5">Email</th>
+                <th class="p-3.5">Destination Port</th>
+                <th class="p-3.5">Wanted Products (From Enquiries)</th>
+                <th class="p-3.5">Notes</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredBuyers.length === 0">
+                <tr>
+                  <td colspan="8" class="p-8 text-center text-slate-400">
+                    No buyers found. Click <strong>+ Add Buyer</strong> to add your first buyer.
+                  </td>
+                </tr>
+              </template>
+              <template x-for="b in filteredBuyers" :key="b.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="b.company_name"></td>
+                  <td class="p-3.5 text-slate-700" x-text="b.contact_person || '-'"></td>
+                  <td class="p-3.5">
+                    <span x-text="b.phone_whatsapp || '-'"></span>
+                    <a x-show="b.phone_whatsapp" :href="waLink(b.phone_whatsapp)" target="_blank"
+                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                  </td>
+                  <td class="p-3.5 text-slate-600" x-text="b.email || '-'"></td>
+                  <td class="p-3.5 text-slate-600" x-text="b.destination_port || '-'"></td>
+                  <td class="p-3.5">
+                    <span class="text-slate-700 font-medium" x-text="buyerProductsSummary(b.id)"></span>
+                  </td>
+                  <td class="p-3.5 text-slate-500" x-text="b.notes || '-'"></td>
+                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
+                    <button @click="openBuyerModal(b)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SUPPLIERS PAGE ==================== -->
+    <div x-show="activeTab === 'suppliers'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex-1 min-w-[260px]">
+          <input type="text" x-model="supplierSearch"
+                 placeholder="Search Suppliers by company name, contact person, city/country, products supplied, or certifications..."
+                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
+        </div>
+        <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+          + Add Supplier
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="font-bold text-slate-800 text-base">Suppliers List (<span x-text="filteredSuppliers.length"></span>)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">Supplier Company</th>
+                <th class="p-3.5">Contact Person</th>
+                <th class="p-3.5">Phone / WhatsApp</th>
+                <th class="p-3.5">Email</th>
+                <th class="p-3.5">Location</th>
+                <th class="p-3.5">Products Supplied / Specialties</th>
+                <th class="p-3.5">Certifications</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredSuppliers.length === 0">
+                <tr>
+                  <td colspan="8" class="p-8 text-center text-slate-400">
+                    No suppliers found. Click <strong>+ Add Supplier</strong> to add your first supplier.
+                  </td>
+                </tr>
+              </template>
+              <template x-for="s in filteredSuppliers" :key="s.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="s.company_name"></td>
+                  <td class="p-3.5 text-slate-700" x-text="s.contact_person || '-'"></td>
+                  <td class="p-3.5">
+                    <span x-text="s.phone_whatsapp || '-'"></span>
+                    <a x-show="s.phone_whatsapp" :href="waLink(s.phone_whatsapp)" target="_blank"
+                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                  </td>
+                  <td class="p-3.5 text-slate-600" x-text="s.email || '-'"></td>
+                  <td class="p-3.5 text-slate-600" x-text="s.city_country || '-'"></td>
+                  <td class="p-3.5 text-slate-800 font-medium" x-text="s.specialties || '-'"></td>
+                  <td class="p-3.5 text-blue-700 font-semibold" x-text="s.certifications || '-'"></td>
+                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
+                    <button @click="openSupplierModal(s)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteSupplier(s)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== BUYER LEDGER ==================== -->
     <div x-show="activeTab === 'buyerLedger'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -465,7 +575,7 @@
       </div>
     </div>
 
-    <!-- ==================== PHASE 2 PAGE 5: SUPPLIER LEDGER ==================== -->
+    <!-- ==================== SUPPLIER LEDGER ==================== -->
     <div x-show="activeTab === 'supplierLedger'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -528,7 +638,7 @@
       </div>
     </div>
 
-    <!-- ==================== PHASE 2 PAGE 6: LOGISTICS TRACKER ==================== -->
+    <!-- ==================== LOGISTICS TRACKER ==================== -->
     <div x-show="activeTab === 'logistics'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -600,6 +710,89 @@
 
   <!-- ==================== MODALS ==================== -->
 
+  <!-- MODAL 0: ADD / EDIT GL PRODUCT MASTER -->
+  <div x-show="modals.glProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.glProduct.id ? 'Edit GL Product' : 'Add Product to GL Products Master'"></h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product Name *</label>
+          <input x-model="forms.glProduct.product_name" placeholder="e.g. Black Pepper" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Category</label>
+          <input x-model="forms.glProduct.category" placeholder="e.g. Whole Spices" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product Form</label>
+          <input list="product-form-list" x-model="forms.glProduct.product_form" placeholder="Whole, Ground, Powder, Dried..." class="w-full border rounded px-3 py-2 mt-1" />
+          <datalist id="product-form-list">
+            <option value="Whole"></option>
+            <option value="Ground"></option>
+            <option value="Powder"></option>
+            <option value="Dried"></option>
+            <option value="Raw / Unprocessed"></option>
+          </datalist>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Origin</label>
+          <input x-model="forms.glProduct.origin" placeholder="e.g. Idukki, Kerala / Erode, TN" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">Grades / Variants</label>
+          <input x-model="forms.glProduct.grades_variants" placeholder="e.g. 500 GL, 550 GL, Bold, FAQ" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">HSN Code</label>
+          <input x-model="forms.glProduct.hsn_code" placeholder="e.g. 0904.11" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Jurisdiction &amp; Verification Status</label>
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <input x-model="forms.glProduct.hsn_jurisdiction" placeholder="Market (e.g. IN / EU)" class="border rounded px-2.5 py-2" />
+            <select x-model="forms.glProduct.hsn_verification_status" class="border rounded px-2 py-2 bg-white">
+              <option>Unverified</option>
+              <option>Verified</option>
+              <option>Needs Check</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Standard Unit</label>
+          <input list="std-unit-list" x-model="forms.glProduct.standard_unit" placeholder="MT, KG, PCS..." class="w-full border rounded px-3 py-2 mt-1" />
+          <datalist id="std-unit-list">
+            <option value="MT"></option>
+            <option value="KG"></option>
+            <option value="Bag (50 kg)"></option>
+            <option value="PCS"></option>
+          </datalist>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Standard MOQ</label>
+          <input type="number" step="0.01" x-model="forms.glProduct.moq" placeholder="Minimum order quantity" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">Test / Document Checklist</label>
+          <input x-model="forms.glProduct.test_doc_checklist" placeholder="e.g. COA, Phytosanitary Certificate, Moisture Report, Lab Test" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">Product Status</label>
+          <select x-model="forms.glProduct.status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Under Evaluation</option>
+            <option>Sourcing in Progress</option>
+            <option>Ready to Offer</option>
+            <option>On Hold</option>
+            <option>Discontinued</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.glProduct = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveGlProduct()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm font-semibold">Save GL Product</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL 1: ADD / EDIT BUYER -->
   <div x-show="modals.buyer" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
@@ -639,14 +832,19 @@
     </div>
   </div>
 
-  <!-- MODAL 3: NEW BUYER ORDER (MULTIPLE PRODUCTS) -->
+  <!-- MODAL 3: NEW BUYER ENQUIRY / ORDER -->
   <div x-show="modals.order" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
-      <h3 class="text-lg font-bold">Create New Buyer Order</h3>
+    <div class="bg-white rounded-lg max-w-4xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold">Create New Buyer Enquiry / Order</h3>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
         <div>
-          <label class="text-xs font-semibold text-slate-500">Buyer *</label>
-          <select x-model="forms.order.buyer_id" class="w-full border rounded px-3 py-2 mt-1">
+          <label class="text-xs font-semibold text-slate-600">RFQ / Enquiry Reference *</label>
+          <input x-model="forms.order.order_code" class="w-full border rounded px-3 py-2 mt-1 font-medium" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Buyer *</label>
+          <select x-model="forms.order.buyer_id" @change="onSelectEnquiryBuyer()" class="w-full border rounded px-3 py-2 mt-1 bg-white">
             <option value="">Select Buyer...</option>
             <template x-for="b in buyers" :key="b.id">
               <option :value="b.id" x-text="b.company_name"></option>
@@ -654,75 +852,143 @@
           </select>
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-500">Order / RFQ Ref *</label>
-          <input x-model="forms.order.order_code" class="w-full border rounded px-3 py-2 mt-1" />
+          <label class="text-xs font-semibold text-slate-600">Buyer Contact</label>
+          <input x-model="forms.order.buyer_contact" placeholder="Person handling enquiry" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Enquiry Received Date</label>
+          <input type="date" x-model="forms.order.enquiry_received_date" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-500">Target Delivery Date</label>
+          <label class="text-xs font-semibold text-slate-600">Enquiry Source</label>
+          <select x-model="forms.order.enquiry_source" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Email</option>
+            <option>WhatsApp</option>
+            <option>Website</option>
+            <option>Referral</option>
+            <option>Trade Portal</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Destination Country *</label>
+          <input x-model="forms.order.destination_country" placeholder="e.g. United Arab Emirates" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Destination Port / City</label>
+          <input x-model="forms.order.destination_port" placeholder="e.g. Jebel Ali" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Target Delivery Date</label>
           <input type="date" x-model="forms.order.target_delivery_date" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Currency</label>
+            <select x-model="forms.order.currency" class="w-full border rounded px-2 py-2 mt-1 bg-white">
+              <option>USD</option><option>INR</option><option>EUR</option><option>AED</option><option>GBP</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Incoterms</label>
+            <select x-model="forms.order.incoterms" class="w-full border rounded px-2 py-2 mt-1 bg-white">
+              <option>FOB</option><option>CIF</option><option>EXW</option><option>CFR</option>
+            </select>
+          </div>
+        </div>
+
         <div>
-          <label class="text-xs font-semibold text-slate-500">Currency</label>
-          <select x-model="forms.order.currency" class="w-full border rounded px-3 py-2 mt-1">
-            <option>USD</option><option>INR</option><option>EUR</option><option>AED</option>
-          </select>
+          <label class="text-xs font-semibold text-slate-600">Payment Terms</label>
+          <input x-model="forms.order.payment_terms" placeholder="e.g. 30% Adv, 70% BL or TBA" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-500">Incoterms</label>
-          <select x-model="forms.order.incoterms" class="w-full border rounded px-3 py-2 mt-1">
-            <option>FOB</option><option>CIF</option><option>EXW</option><option>CFR</option>
-          </select>
+          <label class="text-xs font-semibold text-slate-600">GL Team</label>
+          <input x-model="forms.order.gl_team" placeholder="e.g. Sourcing / Export Desk" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Buyer Documents (Links / File Refs)</label>
+          <input x-model="forms.order.buyer_documents" placeholder="Drive/file links or spec sheet names" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div class="md:col-span-3">
+          <label class="text-xs font-semibold text-slate-600">General Notes / Commercial Requirements</label>
+          <textarea x-model="forms.order.general_notes" rows="2" placeholder="Overall commercial context, packaging, or buyer requirements..."
+                    class="w-full border rounded px-3 py-2 mt-1"></textarea>
         </div>
       </div>
 
-      <div class="border-t pt-3 space-y-2">
-        <div class="flex justify-between items-center">
-          <span class="text-sm font-bold">Product List (Add as many as needed)</span>
-          <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-2.5 py-1 rounded font-semibold">+ Add Row</button>
+      <!-- Product Lines Selected from GL Products Master -->
+      <div class="border-t pt-3 space-y-2.5">
+        <div class="flex justify-between items-center flex-wrap gap-2">
+          <div>
+            <span class="text-sm font-bold">Product Lines (Select from GL Products Master)</span>
+            <p class="text-[11px] text-slate-500">Pick a master product to auto-fill specs, grade/variant, and unit.</p>
+          </div>
+          <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded font-semibold">+ Add Product Line</button>
         </div>
+
         <template x-for="(prod, i) in forms.order.products" :key="i">
-          <div class="grid grid-cols-12 gap-2 items-center text-xs">
-            <input x-model="prod.product_name" placeholder="Product Name *" class="col-span-4 border rounded px-2 py-1.5" />
-            <input x-model="prod.specifications" placeholder="Grade / Specs" class="col-span-3 border rounded px-2 py-1.5" />
-            <input type="number" x-model="prod.required_qty" placeholder="Qty" class="col-span-2 border rounded px-2 py-1.5" />
-            <input x-model="prod.unit" placeholder="Unit" class="col-span-1 border rounded px-2 py-1.5" />
-            <input type="number" step="0.01" x-model="prod.buyer_target_price" :placeholder="`Target (${forms.order.currency})`" class="col-span-2 border rounded px-2 py-1.5" />
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center text-xs bg-slate-50 p-2.5 rounded border border-slate-200">
+            <select x-model="prod.gl_product_id" @change="applyGlProductToRow(prod)"
+                    class="md:col-span-3 border rounded px-2 py-1.5 bg-white font-medium">
+              <option value="">-- From GL Products --</option>
+              <template x-for="gp in glProducts" :key="gp.id">
+                <option :value="gp.id" x-text="`${gp.product_name}${gp.grades_variants ? ' (' + gp.grades_variants + ')' : ''}`"></option>
+              </template>
+            </select>
+            <input x-model="prod.product_name" placeholder="Product Name *" class="md:col-span-3 border rounded px-2 py-1.5 bg-white" />
+            <input x-model="prod.specifications" placeholder="Grade / Form / Specs" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
+            <input type="number" step="0.01" x-model="prod.required_qty" placeholder="Qty" class="md:col-span-1 border rounded px-2 py-1.5 bg-white" />
+            <input x-model="prod.unit" placeholder="Unit" class="md:col-span-1 border rounded px-2 py-1.5 bg-white" />
+            <input type="number" step="0.01" x-model="prod.buyer_target_price" :placeholder="`Target (${forms.order.currency})`" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
           </div>
         </template>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
         <button @click="modals.order = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
-        <button @click="saveOrder()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Create Buyer Order</button>
+        <button @click="saveOrder()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Buyer Enquiry</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 4: ADD / EDIT PRODUCT ON ORDER -->
+  <!-- MODAL 4: ADD / EDIT PRODUCT ON ENQUIRY -->
   <div x-show="modals.addProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.singleProduct.id ? 'Edit Product' : 'Add Product to Order'"></h3>
+      <h3 class="text-lg font-bold" x-text="forms.singleProduct.id ? 'Edit Product Line' : 'Add Product to Enquiry'"></h3>
       <div class="space-y-3 text-sm">
         <div>
-          <label class="text-xs font-semibold text-slate-500">Product Name *</label>
+          <label class="text-xs font-semibold text-slate-600">Select from GL Products Master</label>
+          <select x-model="forms.singleProduct.gl_product_id" @change="applyGlProductToRow(forms.singleProduct)"
+                  class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option value="">-- Optional: Pick Master Product --</option>
+            <template x-for="gp in glProducts" :key="gp.id">
+              <option :value="gp.id" x-text="`${gp.product_name}${gp.grades_variants ? ' (' + gp.grades_variants + ')' : ''}`"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product Name *</label>
           <input x-model="forms.singleProduct.product_name" placeholder="Product Name *" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-500">Specifications / Grade</label>
+          <label class="text-xs font-semibold text-slate-600">Specifications / Grade</label>
           <input x-model="forms.singleProduct.specifications" placeholder="Specifications / Grade" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-xs font-semibold text-slate-500">Required Qty</label>
-            <input type="number" x-model="forms.singleProduct.required_qty" placeholder="Required Qty" class="w-full border rounded px-3 py-2 mt-1" />
+            <label class="text-xs font-semibold text-slate-600">Required Qty</label>
+            <input type="number" step="0.01" x-model="forms.singleProduct.required_qty" placeholder="Required Qty" class="w-full border rounded px-3 py-2 mt-1" />
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500">Unit</label>
-            <input x-model="forms.singleProduct.unit" placeholder="Unit (KG, PCS, MT, Bag)" class="w-full border rounded px-3 py-2 mt-1" />
+            <label class="text-xs font-semibold text-slate-600">Unit</label>
+            <input x-model="forms.singleProduct.unit" placeholder="Unit (MT, KG, Bag)" class="w-full border rounded px-3 py-2 mt-1" />
           </div>
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-500">Buyer Target Price (<span x-text="`${activeOrder?.currency || 'USD'} per ${forms.singleProduct.unit || 'Unit'}`"></span>)</label>
+          <label class="text-xs font-semibold text-slate-600">Buyer Target Price (<span x-text="`${activeOrder?.currency || 'USD'} per ${forms.singleProduct.unit || 'Unit'}`"></span>)</label>
           <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="0.00" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
       </div>
@@ -819,7 +1085,7 @@
     </div>
   </div>
 
-  <!-- MODAL 6: PHASE 2 BUYER LEDGER -->
+  <!-- MODAL 6: BUYER LEDGER -->
   <div x-show="modals.buyerLedger" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
       <h3 class="text-lg font-bold" x-text="forms.buyerLedger.id ? 'Edit Buyer Invoice' : 'Add Buyer Invoice'"></h3>
@@ -832,7 +1098,7 @@
           </template>
         </select>
         <select x-model="forms.buyerLedger.order_id" class="w-full border rounded px-3 py-2 bg-white">
-          <option value="">Link Order (Optional)</option>
+          <option value="">Link Enquiry / Order (Optional)</option>
           <template x-for="o in orders" :key="o.id">
             <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}`"></option>
           </template>
@@ -859,7 +1125,7 @@
     </div>
   </div>
 
-  <!-- MODAL 7: PHASE 2 SUPPLIER LEDGER -->
+  <!-- MODAL 7: SUPPLIER LEDGER -->
   <div x-show="modals.supplierLedger" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
       <h3 class="text-lg font-bold" x-text="forms.supplierLedger.id ? 'Edit Supplier PO Entry' : 'Add Supplier PO Entry'"></h3>
@@ -872,7 +1138,7 @@
           </template>
         </select>
         <select x-model="forms.supplierLedger.order_id" class="w-full border rounded px-3 py-2 bg-white">
-          <option value="">Link Order (Optional)</option>
+          <option value="">Link Enquiry / Order (Optional)</option>
           <template x-for="o in orders" :key="o.id">
             <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}`"></option>
           </template>
@@ -901,7 +1167,7 @@
     </div>
   </div>
 
-  <!-- MODAL 8: PHASE 2 LOGISTICS TRACKER -->
+  <!-- MODAL 8: LOGISTICS TRACKER -->
   <div x-show="modals.logistics" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
       <h3 class="text-lg font-bold" x-text="forms.logistics.id ? 'Edit Shipment' : 'Add Shipment'"></h3>
@@ -951,9 +1217,12 @@
   <script>
     function sourcingApp() {
       return {
-        activeTab: 'orders',
+        activeTab: 'glProducts',
         buyerSearch: '',
         supplierSearch: '',
+        glProductSearch: '',
+        glProductStatusFilter: 'ALL',
+        glProducts: [],
         buyers: [],
         suppliers: [],
         orders: [],
@@ -964,6 +1233,7 @@
         expandedItems: {},
         assignTargetItem: null,
         modals: {
+          glProduct: false,
           buyer: false,
           supplier: false,
           order: false,
@@ -974,10 +1244,41 @@
           logistics: false,
         },
         forms: {
+          glProduct: {
+            id: null,
+            product_name: '',
+            category: '',
+            product_form: '',
+            origin: '',
+            grades_variants: '',
+            hsn_code: '',
+            hsn_jurisdiction: '',
+            hsn_verification_status: 'Unverified',
+            standard_unit: 'MT',
+            moq: '',
+            test_doc_checklist: '',
+            status: 'Under Evaluation',
+          },
           buyer: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' },
           supplier: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' },
-          order: { buyer_id: '', order_code: '', currency: 'USD', incoterms: 'FOB', target_delivery_date: '', products: [] },
-          singleProduct: { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+          order: {
+            order_code: '',
+            buyer_id: '',
+            buyer_contact: '',
+            enquiry_received_date: '',
+            enquiry_source: 'Email',
+            destination_country: '',
+            destination_port: '',
+            currency: 'USD',
+            incoterms: 'FOB',
+            payment_terms: 'TBA',
+            gl_team: '',
+            buyer_documents: '',
+            general_notes: '',
+            target_delivery_date: '',
+            products: [],
+          },
+          singleProduct: { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'MT', buyer_target_price: '' },
           quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: '1 - RFQ Sent', remarks: '' },
           buyerLedger: { id: null, invoice_no: '', buyer_id: '', order_id: '', currency: 'USD', invoice_amount: '', amount_received: '', due_date: '', payment_status: 'Unpaid', remarks: '' },
           supplierLedger: { id: null, po_ref: '', supplier_id: '', order_id: '', currency: 'INR', total_amount: '', amount_paid: '', qc_status: 'Pending QC', payment_status: 'Pending', remarks: '' },
@@ -986,6 +1287,26 @@
 
         get activeOrder() {
           return this.orders.find((o) => String(o.id) === String(this.selectedOrderId)) || null;
+        },
+
+        get filteredGlProducts() {
+          const q = this.glProductSearch.toLowerCase().trim();
+          return this.glProducts.filter((gp) => {
+            const statusOk = this.glProductStatusFilter === 'ALL' || gp.status === this.glProductStatusFilter;
+            const searchOk =
+              !q ||
+              [
+                gp.product_name,
+                gp.category,
+                gp.product_form,
+                gp.origin,
+                gp.grades_variants,
+                gp.hsn_code,
+                gp.hsn_jurisdiction,
+                gp.test_doc_checklist,
+              ].some((f) => String(f || '').toLowerCase().includes(q));
+            return statusOk && searchOk;
+          });
         },
 
         get filteredBuyers() {
@@ -1004,6 +1325,21 @@
             [s.company_name, s.contact_person, s.phone_whatsapp, s.email, s.city_country, s.specialties, s.certifications]
               .some((field) => String(field || '').toLowerCase().includes(q))
           );
+        },
+
+        glStatusBadge(status) {
+          switch (status) {
+            case 'Ready to Offer':
+              return 'bg-emerald-100 text-emerald-800';
+            case 'Sourcing in Progress':
+              return 'bg-blue-100 text-blue-800';
+            case 'On Hold':
+              return 'bg-amber-100 text-amber-800';
+            case 'Discontinued':
+              return 'bg-red-100 text-red-800';
+            default:
+              return 'bg-slate-100 text-slate-700';
+          }
         },
 
         buyerProductsSummary(buyerId) {
@@ -1028,13 +1364,15 @@
         },
 
         async loadAll() {
-          const [dirRes, ordRes, blRes, slRes, lgRes] = await Promise.all([
+          const [gpRes, dirRes, ordRes, blRes, slRes, lgRes] = await Promise.all([
+            fetch('/api/gl-products'),
             fetch('/api/directory'),
             fetch('/api/orders'),
             fetch('/api/buyer-ledger'),
             fetch('/api/supplier-ledger'),
             fetch('/api/logistics'),
           ]);
+          this.glProducts = await gpRes.json();
           const dir = await dirRes.json();
           this.buyers = dir.buyers || [];
           this.suppliers = dir.suppliers || [];
@@ -1061,6 +1399,47 @@
         waLink(phone) {
           const clean = String(phone || '').replace(/[^0-9]/g, '');
           return clean ? `https://wa.me/${clean}` : '#';
+        },
+
+        // --- STEP 1: GL PRODUCTS MASTER CRUD ---
+        openGlProductModal(gp = null) {
+          this.forms.glProduct = gp
+            ? { ...gp }
+            : {
+                id: null,
+                product_name: '',
+                category: '',
+                product_form: '',
+                origin: '',
+                grades_variants: '',
+                hsn_code: '',
+                hsn_jurisdiction: '',
+                hsn_verification_status: 'Unverified',
+                standard_unit: 'MT',
+                moq: '',
+                test_doc_checklist: '',
+                status: 'Under Evaluation',
+              };
+          this.modals.glProduct = true;
+        },
+
+        async saveGlProduct() {
+          if (!this.forms.glProduct.product_name.trim()) return alert('Product name is required');
+          const isEdit = Boolean(this.forms.glProduct.id);
+          await fetch(isEdit ? `/api/gl-products/${this.forms.glProduct.id}` : '/api/gl-products', {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.glProduct),
+          });
+          this.modals.glProduct = false;
+          this.activeTab = 'glProducts';
+          await this.loadAll();
+        },
+
+        async deleteGlProduct(id) {
+          if (!confirm('Delete this product from GL Products Master?')) return;
+          await fetch(`/api/gl-products/${id}`, { method: 'DELETE' });
+          await this.loadAll();
         },
 
         // --- BUYER CRUD ---
@@ -1123,30 +1502,74 @@
           await this.loadAll();
         },
 
-        // --- ORDER & QUOTE CRUD ---
+        // --- STEP 2: BUYER ENQUIRY / ORDER ---
+        onSelectEnquiryBuyer() {
+          const selected = this.buyers.find((b) => String(b.id) === String(this.forms.order.buyer_id));
+          if (!selected) return;
+          if (!this.forms.order.buyer_contact && selected.contact_person) {
+            this.forms.order.buyer_contact = selected.contact_person;
+          }
+          if (!this.forms.order.destination_port && selected.destination_port) {
+            this.forms.order.destination_port = selected.destination_port;
+          }
+        },
+
+        applyGlProductToRow(row) {
+          const gp = this.glProducts.find((item) => String(item.id) === String(row.gl_product_id));
+          if (!gp) return;
+          row.product_name = gp.product_name;
+          const parts = [gp.grades_variants, gp.product_form, gp.origin ? `Origin: ${gp.origin}` : ''].filter(Boolean);
+          row.specifications = parts.join(' | ');
+          row.unit = gp.standard_unit || 'MT';
+          if (!row.required_qty && gp.moq) row.required_qty = gp.moq;
+        },
+
         openNewOrderModal() {
+          const firstBuyer = this.buyers[0];
+          const today = new Date().toISOString().slice(0, 10);
           this.forms.order = {
-            buyer_id: this.buyers[0]?.id || '',
-            order_code: `RFQ-${new Date().getFullYear()}-${String(this.orders.length + 1).padStart(3, '0')}`,
+            order_code: `ENQ-${new Date().getFullYear()}-${String(this.orders.length + 1).padStart(3, '0')}`,
+            buyer_id: firstBuyer?.id || '',
+            buyer_contact: firstBuyer?.contact_person || '',
+            enquiry_received_date: today,
+            enquiry_source: 'Email',
+            destination_country: '',
+            destination_port: firstBuyer?.destination_port || '',
             currency: 'USD',
             incoterms: 'FOB',
+            payment_terms: 'TBA',
+            gl_team: '',
+            buyer_documents: '',
+            general_notes: '',
             target_delivery_date: '',
             products: [
-              { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
-              { product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+              { gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'MT', buyer_target_price: '' },
             ],
           };
           this.modals.order = true;
         },
 
         addProductRow() {
-          this.forms.order.products.push({ product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' });
+          this.forms.order.products.push({
+            gl_product_id: '',
+            product_name: '',
+            specifications: '',
+            required_qty: '',
+            unit: 'MT',
+            buyer_target_price: '',
+          });
         },
 
         async saveOrder() {
           if (!this.forms.order.buyer_id) return alert('Select a buyer');
-          const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.forms.order) });
+          if (!this.forms.order.destination_country.trim()) return alert('Destination Country is required');
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.order),
+          });
           const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not save enquiry');
           this.modals.order = false;
           this.activeTab = 'orders';
           await this.loadAll();
@@ -1154,7 +1577,7 @@
         },
 
         async deleteOrder(orderId) {
-          if (!confirm('Delete this entire Buyer Order and all its products/quotes?')) return;
+          if (!confirm('Delete this entire Buyer Enquiry / Order and all its products/quotes?')) return;
           await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
           this.selectedOrderId = '';
           await this.loadAll();
@@ -1162,12 +1585,20 @@
         },
 
         openAddProductModal() {
-          this.forms.singleProduct = { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
+          this.forms.singleProduct = {
+            id: null,
+            gl_product_id: '',
+            product_name: '',
+            specifications: '',
+            required_qty: '',
+            unit: 'MT',
+            buyer_target_price: '',
+          };
           this.modals.addProduct = true;
         },
 
         openEditProductModal(item) {
-          this.forms.singleProduct = { ...item };
+          this.forms.singleProduct = { ...item, gl_product_id: item.gl_product_id || '' };
           this.modals.addProduct = true;
         },
 
@@ -1180,7 +1611,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(this.forms.singleProduct),
           });
-          this.forms.singleProduct = { id: null, product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
+          this.forms.singleProduct = { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'MT', buyer_target_price: '' };
           this.modals.addProduct = false;
           await this.loadAll();
         },
@@ -1233,7 +1664,7 @@
           await this.loadAll();
         },
 
-        // --- PHASE 2: BUYER LEDGER CRUD ---
+        // --- BUYER LEDGER CRUD ---
         openBuyerLedgerModal(row = null) {
           this.forms.buyerLedger = row
             ? { ...row }
@@ -1259,7 +1690,7 @@
           await this.loadAll();
         },
 
-        // --- PHASE 2: SUPPLIER LEDGER CRUD ---
+        // --- SUPPLIER LEDGER CRUD ---
         openSupplierLedgerModal(row = null) {
           this.forms.supplierLedger = row
             ? { ...row }
@@ -1285,7 +1716,7 @@
           await this.loadAll();
         },
 
-        // --- PHASE 2: LOGISTICS CRUD ---
+        // --- LOGISTICS CRUD ---
         openLogisticsModal(row = null) {
           this.forms.logistics = row
             ? { ...row }

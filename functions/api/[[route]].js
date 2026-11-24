@@ -55,7 +55,6 @@ async function ensureSchema(db) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Step 1: GL Products Master
     CREATE TABLE IF NOT EXISTS gl_products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       product_name TEXT NOT NULL,
@@ -170,7 +169,6 @@ async function ensureSchema(db) {
     );
   `);
 
-  // Safe migrations for existing databases
   await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_contact TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN enquiry_received_date TEXT DEFAULT ''`);
@@ -742,7 +740,7 @@ export async function onRequest(context) {
       }
     }
 
-    // ==================== PHASE 2 ROUTES ====================
+    // PHASE 2 ROUTES
     if (path === '/api/buyer-ledger') {
       if (method === 'GET') {
         const res = await db.execute(`
