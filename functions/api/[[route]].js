@@ -57,18 +57,14 @@ async function ensureSchema(db) {
 
     CREATE TABLE IF NOT EXISTS gl_products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id TEXT DEFAULT '',
       product_name TEXT NOT NULL,
       category TEXT DEFAULT '',
-      product_form TEXT DEFAULT '',
       origin TEXT DEFAULT '',
-      grades_variants TEXT DEFAULT '',
-      hsn_code TEXT DEFAULT '',
-      hsn_jurisdiction TEXT DEFAULT '',
-      hsn_verification_status TEXT DEFAULT 'Unverified',
-      standard_unit TEXT DEFAULT 'MT',
-      moq REAL DEFAULT 0,
-      test_doc_checklist TEXT DEFAULT '',
-      status TEXT DEFAULT 'Under Evaluation',
+      spec_coa_pdf_name TEXT DEFAULT '',
+      spec_coa_pdf_data TEXT DEFAULT '',
+      hsn_code TEXT DEFAULT 'Need to update',
+      internal_notes TEXT DEFAULT '',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -179,6 +175,10 @@ async function ensureSchema(db) {
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_documents TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN general_notes TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE order_items ADD COLUMN gl_product_id INTEGER`);
+  await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN product_id TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN spec_coa_pdf_name TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN spec_coa_pdf_data TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN internal_notes TEXT DEFAULT ''`);
 
   schemaInitialized = true;
 }
@@ -204,42 +204,34 @@ export async function onRequest(context) {
     // 0. GL PRODUCTS MASTER (GET, POST, PUT, DELETE)
     if (path === '/api/gl-products') {
       if (method === 'GET') {
-        const res = await db.execute('SELECT * FROM gl_products ORDER BY product_name ASC, id DESC');
+        const res = await db.execute('SELECT * FROM gl_products ORDER BY product_id ASC, id DESC');
         return jsonResponse(res.rows);
       }
       if (method === 'POST') {
         const {
+          product_id,
           product_name,
           category,
-          product_form,
           origin,
-          grades_variants,
+          spec_coa_pdf_name,
+          spec_coa_pdf_data,
           hsn_code,
-          hsn_jurisdiction,
-          hsn_verification_status,
-          standard_unit,
-          moq,
-          test_doc_checklist,
-          status,
+          internal_notes,
         } = await request.json();
 
         const res = await db.execute({
           sql: `INSERT INTO gl_products
-                (product_name, category, product_form, origin, grades_variants, hsn_code, hsn_jurisdiction, hsn_verification_status, standard_unit, moq, test_doc_checklist, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+                (product_id, product_name, category, origin, spec_coa_pdf_name, spec_coa_pdf_data, hsn_code, internal_notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
           args: [
+            product_id || '',
             product_name,
             category || '',
-            product_form || '',
             origin || '',
-            grades_variants || '',
-            hsn_code || '',
-            hsn_jurisdiction || '',
-            hsn_verification_status || 'Unverified',
-            standard_unit || 'MT',
-            Number(moq) || 0,
-            test_doc_checklist || '',
-            status || 'Under Evaluation',
+            spec_coa_pdf_name || '',
+            spec_coa_pdf_data || '',
+            hsn_code || 'Need to update',
+            internal_notes || '',
           ],
         });
         return jsonResponse(res.rows[0]);
@@ -251,39 +243,30 @@ export async function onRequest(context) {
       const id = glProdMatch[1];
       if (method === 'PUT') {
         const {
+          product_id,
           product_name,
           category,
-          product_form,
           origin,
-          grades_variants,
+          spec_coa_pdf_name,
+          spec_coa_pdf_data,
           hsn_code,
-          hsn_jurisdiction,
-          hsn_verification_status,
-          standard_unit,
-          moq,
-          test_doc_checklist,
-          status,
+          internal_notes,
         } = await request.json();
 
         await db.execute({
           sql: `UPDATE gl_products
-                SET product_name=?, category=?, product_form=?, origin=?, grades_variants=?,
-                    hsn_code=?, hsn_jurisdiction=?, hsn_verification_status=?,
-                    standard_unit=?, moq=?, test_doc_checklist=?, status=?
+                SET product_id=?, product_name=?, category=?, origin=?,
+                    spec_coa_pdf_name=?, spec_coa_pdf_data=?, hsn_code=?, internal_notes=?
                 WHERE id=?`,
           args: [
+            product_id || '',
             product_name,
             category || '',
-            product_form || '',
             origin || '',
-            grades_variants || '',
-            hsn_code || '',
-            hsn_jurisdiction || '',
-            hsn_verification_status || 'Unverified',
-            standard_unit || 'MT',
-            Number(moq) || 0,
-            test_doc_checklist || '',
-            status || 'Under Evaluation',
+            spec_coa_pdf_name || '',
+            spec_coa_pdf_data || '',
+            hsn_code || 'Need to update',
+            internal_notes || '',
             id,
           ],
         });
@@ -404,7 +387,7 @@ export async function onRequest(context) {
       }
     }
 
-    // 6. GET & POST /api/orders (Buyer Enquiry / Order)
+    // 6. GET & POST /api/orders
     if (path === '/api/orders') {
       if (method === 'GET') {
         const ordersRes = await db.execute(`
