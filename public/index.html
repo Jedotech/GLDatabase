@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLDatabase — Products, Buyers, Suppliers, Buyer Enquiries &amp; Order Processing</title>
+  <title>GLDatabase — Dashboard, Products, Buyers, Suppliers, Buyer Enquiries &amp; Order Processing</title>
+  <!-- GL Global Custom SVG Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Crect x='3' y='3' width='58' height='58' rx='11' fill='none' stroke='%2314b8a6' stroke-width='3'/%3E%3Ctext x='32' y='42' font-family='Arial,Helvetica,sans-serif' font-weight='800' font-size='28' fill='%23ffffff' text-anchor='middle'%3EGL%3C/text%3E%3Ccircle cx='50' cy='16' r='5' fill='%2310b981'/%3E%3C/svg%3E" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
@@ -33,16 +35,72 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen" x-data="sourcingApp()" x-init="init()">
 
+  <!-- ==================== SIGN-IN GATE ==================== -->
+  <div x-show="!currentUser" class="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-200">
+      <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+        <!-- GL Logo -->
+        <svg class="w-11 h-11 shrink-0" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#0f172a"/>
+          <rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#14b8a6" stroke-width="3"/>
+          <text x="32" y="42" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="28" fill="#ffffff" text-anchor="middle">GL</text>
+          <circle cx="50" cy="16" r="5" fill="#10b981"/>
+        </svg>
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900">GL Global Sourcing Desk</h2>
+          <p class="text-xs text-slate-500">Select your operator profile to sign in</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Operator Name</label>
+          <select x-model="loginForm.userId" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 mt-1 bg-white font-semibold">
+            <template x-for="u in users" :key="u.id">
+              <option :value="u.id" x-text="`${u.name} — ${u.roleLabel}`"></option>
+            </template>
+          </select>
+        </div>
+
+        <div x-show="selectedLoginUser?.pin">
+          <label class="text-xs font-semibold text-slate-600">Access PIN</label>
+          <input type="password" x-model="loginForm.pin" @keyup.enter="submitLogin()" placeholder="Enter operator PIN"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2.5 mt-1 font-mono" />
+        </div>
+
+        <p x-show="loginError" class="text-xs text-red-600 font-semibold" x-text="loginError"></p>
+      </div>
+
+      <button @click="submitLogin()" class="w-full bg-teal-600 hover:bg-teal-500 text-white py-2.5 rounded-lg text-sm font-bold shadow">
+        Sign In to GLDatabase
+      </button>
+    </div>
+  </div>
+
   <!-- Top Navigation Bar -->
   <header class="bg-slate-900 text-white px-6 py-4 shadow flex flex-wrap items-center justify-between gap-4">
-    <div class="flex items-center gap-5 flex-wrap">
-      <div>
-        <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
-        <p class="text-xs text-slate-400">Products &rarr; Buyers &rarr; Suppliers &rarr; Buyer Enquiries &rarr; Order Processing</p>
+    <div class="flex items-center gap-4 flex-wrap">
+      <!-- GL Logo + Title -->
+      <div class="flex items-center gap-3">
+        <svg class="w-10 h-10 shrink-0" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="GL Global Logo">
+          <rect width="64" height="64" rx="14" fill="#0f172a"/>
+          <rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#14b8a6" stroke-width="3.5"/>
+          <text x="32" y="42" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="28" fill="#ffffff" text-anchor="middle">GL</text>
+          <circle cx="50" cy="16" r="5" fill="#10b981"/>
+        </svg>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
+          <p class="text-xs text-slate-400">Dashboard &rarr; Products &rarr; Buyers &rarr; Suppliers &rarr; Buyer Enquiries &rarr; Order Processing</p>
+        </div>
       </div>
 
       <!-- Navigation Tabs -->
       <nav class="flex bg-slate-800 p-1 rounded-lg text-xs font-semibold flex-wrap gap-0.5">
+        <button @click="activeTab = 'dashboard'"
+                :class="activeTab === 'dashboard' ? 'bg-sky-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+                class="px-3.5 py-1.5 rounded-md transition">
+          Dashboard
+        </button>
         <button @click="activeTab = 'glProducts'"
                 :class="activeTab === 'glProducts' ? 'bg-teal-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
@@ -71,15 +129,146 @@
       </nav>
     </div>
 
-    <div class="flex flex-wrap gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Product</button>
       <button @click="openNewOrderModal()" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded text-xs font-semibold shadow-sm">+ New Buyer Enquiry</button>
       <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Buyer</button>
       <button @click="openSupplierModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-xs font-medium">+ Add Supplier</button>
+
+      <!-- Admin-Only User Management & Settings Button -->
+      <button x-show="canManageAdmin" @click="modals.adminSettings = true"
+              class="bg-amber-600 hover:bg-amber-500 px-3 py-2 rounded text-xs font-semibold shadow-sm"
+              title="User Management &amp; System Settings (Alex &amp; Jesu Doss only)">
+        Admin &amp; Settings
+      </button>
+
+      <!-- Active Operator Badge -->
+      <div x-show="currentUser" class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs">
+        <div>
+          <span class="font-bold text-white" x-text="currentUser?.name"></span>
+          <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                :class="canManageAdmin ? 'bg-amber-500/20 text-amber-300' : 'bg-sky-500/20 text-sky-300'"
+                x-text="canManageAdmin ? 'Admin' : 'Ops'"></span>
+        </div>
+        <button @click="logoutUser()" class="text-slate-400 hover:text-white underline text-[11px]">Switch</button>
+      </div>
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <div x-show="activeTab === 'dashboard'" class="space-y-6" style="display:none;">
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div @click="activeTab = 'orders'" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-sky-600 cursor-pointer hover:shadow">
+          <div class="text-xs font-semibold text-slate-500 uppercase">New Enquiries</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-1" x-text="dashboardMetrics.newEnquiries.length"></div>
+          <div class="text-[11px] text-slate-400 mt-1">Received / Clarification / Confirmed</div>
+        </div>
+
+        <div @click="activeTab = 'orders'" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-amber-500 cursor-pointer hover:shadow">
+          <div class="text-xs font-semibold text-slate-500 uppercase">Supplier Quotes Pending</div>
+          <div class="text-2xl font-extrabold text-amber-700 mt-1" x-text="dashboardMetrics.quotesPending.length"></div>
+          <div class="text-[11px] text-slate-400 mt-1">RFQ Sent &amp; awaiting supplier price</div>
+        </div>
+
+        <div @click="activeTab = 'orders'" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-teal-600 cursor-pointer hover:shadow">
+          <div class="text-xs font-semibold text-slate-500 uppercase">Samples Pending / Approval</div>
+          <div class="text-2xl font-extrabold text-teal-700 mt-1" x-text="dashboardMetrics.samplesPending.length"></div>
+          <div class="text-[11px] text-slate-400 mt-1">Requested or received for QC</div>
+        </div>
+
+        <div @click="activeTab = 'orders'" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-indigo-600 cursor-pointer hover:shadow">
+          <div class="text-xs font-semibold text-slate-500 uppercase">Awaiting Buyer Response</div>
+          <div class="text-2xl font-extrabold text-indigo-700 mt-1" x-text="dashboardMetrics.awaitingBuyer.length"></div>
+          <div class="text-[11px] text-slate-400 mt-1">GL Quote Sent / Negotiation</div>
+        </div>
+
+        <div @click="activeTab = 'orderProcessing'" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-purple-600 cursor-pointer hover:shadow">
+          <div class="text-xs font-semibold text-slate-500 uppercase">Active Orders in Execution</div>
+          <div class="text-2xl font-extrabold text-purple-700 mt-1" x-text="awardedOrderRows.length"></div>
+          <div class="text-[11px] text-slate-400 mt-1">PO Issued through Delivered</div>
+        </div>
+      </div>
+
+      <!-- Orders by Stage Breakdown -->
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Orders by Execution Stage</h2>
+            <p class="text-xs text-slate-500">Live distribution of selected orders across post-award stages.</p>
+          </div>
+          <button @click="activeTab = 'orderProcessing'" class="text-xs text-purple-700 font-semibold hover:underline">Go to Order Processing &rarr;</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <template x-for="st in ['PO Issued', 'Production / QC', 'Docs & Customs', 'Dispatched / On Board', 'Delivered']" :key="st">
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+              <div class="text-xs font-semibold text-slate-600" x-text="st"></div>
+              <div class="text-xl font-extrabold text-slate-900 mt-1" x-text="countOrdersByStage(st)"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Action Queue with Next Action & Owner -->
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <h2 class="font-bold text-slate-900 text-base">Action Tracker — Next Action &amp; Owner</h2>
+            <p class="text-xs text-slate-500">Prioritized operational items across Enquiries, Supplier Quotes, Samples, and Order Execution.</p>
+          </div>
+          <select x-model="dashboardOwnerFilter" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+            <option value="ALL">All Owners</option>
+            <template x-for="u in users" :key="u.id">
+              <option :value="u.name" x-text="u.name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">Category</th>
+                <th class="p-3.5">Ref / Order</th>
+                <th class="p-3.5">Buyer / Supplier &amp; Product</th>
+                <th class="p-3.5">Current Stage / Status</th>
+                <th class="p-3.5">Next Action</th>
+                <th class="p-3.5">Owner</th>
+                <th class="p-3.5 text-right">Open</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredDashboardActionItems.length === 0">
+                <tr>
+                  <td colspan="7" class="p-8 text-center text-slate-400">No pending action items for the selected filter.</td>
+                </tr>
+              </template>
+              <template x-for="act in filteredDashboardActionItems" :key="act.key">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 whitespace-nowrap">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="act.badgeClass" x-text="act.category"></span>
+                  </td>
+                  <td class="p-3.5 font-mono font-bold text-blue-800 whitespace-nowrap" x-text="act.ref"></td>
+                  <td class="p-3.5">
+                    <div class="font-semibold text-slate-900" x-text="act.party"></div>
+                    <div class="text-[11px] text-slate-500" x-text="act.product"></div>
+                  </td>
+                  <td class="p-3.5 font-medium text-slate-700" x-text="act.stage"></td>
+                  <td class="p-3.5 font-semibold text-slate-900" x-text="act.nextAction"></td>
+                  <td class="p-3.5 whitespace-nowrap">
+                    <span class="bg-slate-100 border border-slate-300 text-slate-800 px-2 py-0.5 rounded font-semibold" x-text="act.owner"></span>
+                  </td>
+                  <td class="p-3.5 text-right whitespace-nowrap">
+                    <button @click="act.openFn()" class="text-blue-600 hover:underline font-semibold">Open &rarr;</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
     <!-- ==================== STEP 1: PRODUCT MASTER ==================== -->
     <div x-show="activeTab === 'glProducts'" class="space-y-5" style="display:none;">
@@ -143,7 +332,7 @@
                   <td class="p-3.5 align-top text-slate-600 max-w-[240px]" x-text="gp.internal_notes || '-'"></td>
                   <td class="p-3.5 align-top text-right space-x-2 whitespace-nowrap">
                     <button @click="openGlProductModal(gp)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteGlProduct(gp.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                    <button x-show="canPermanentDelete" @click="deleteGlProduct(gp.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
                   </td>
                 </tr>
               </template>
@@ -209,7 +398,7 @@
                   <td class="p-3.5 text-slate-500" x-text="b.notes || '-'"></td>
                   <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
                     <button @click="openBuyerModal(b)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                    <button x-show="canPermanentDelete" @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
                   </td>
                 </tr>
               </template>
@@ -224,7 +413,7 @@
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div class="flex-1 min-w-[260px] flex flex-wrap items-center gap-3">
           <input type="text" x-model="supplierSearch"
-                 placeholder="Search by Supplier ID, Name, Contact, Role, Facility Type, Address, or Linked Products..."
+                 placeholder="Search by Supplier ID, Name, Contact, Role, Facility Type, Address, Certifications, or Linked Products..."
                  class="flex-1 min-w-[220px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
           <select x-model="supplierStatusFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
             <option value="ALL">All Statuses</option>
@@ -252,12 +441,10 @@
               <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
                 <th class="p-3">Supplier ID</th>
                 <th class="p-3">Supplier Name</th>
-                <th class="p-3">Contact Name</th>
-                <th class="p-3">Role/Designation</th>
-                <th class="p-3">Email</th>
-                <th class="p-3">WhatsApp / Contact Number</th>
-                <th class="p-3">Facility Type</th>
-                <th class="p-3">Facility Address</th>
+                <th class="p-3">Contact &amp; Role</th>
+                <th class="p-3">Email &amp; WhatsApp</th>
+                <th class="p-3">Facility &amp; Capacity</th>
+                <th class="p-3">Qualification &amp; Docs</th>
                 <th class="p-3">Products</th>
                 <th class="p-3">Supplier Status</th>
                 <th class="p-3 text-right">Actions</th>
@@ -266,7 +453,7 @@
             <tbody class="divide-y divide-slate-100">
               <template x-if="filteredSuppliers.length === 0">
                 <tr>
-                  <td colspan="11" class="p-8 text-center text-slate-400">
+                  <td colspan="9" class="p-8 text-center text-slate-400">
                     No suppliers found. Click <strong>+ Add Supplier</strong> to add your first supplier.
                   </td>
                 </tr>
@@ -276,32 +463,43 @@
                   <td class="p-3 align-top font-mono font-bold text-emerald-800 whitespace-nowrap" x-text="s.supplier_code"></td>
                   <td class="p-3 align-top">
                     <div class="font-bold text-slate-900 text-sm" x-text="s.company_name"></div>
+                    <div class="text-[11px] text-slate-500 max-w-[180px]" x-text="s.city_country || '-'"></div>
                     <span x-show="s.is_archived" class="inline-block mt-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.5 rounded">Archived</span>
                   </td>
-                  <td class="p-3 align-top text-slate-800 font-medium" x-text="s.contact_person || '-'"></td>
-                  <td class="p-3 align-top text-slate-600" x-text="s.role_designation || '-'"></td>
                   <td class="p-3 align-top">
-                    <template x-if="s.email">
-                      <a :href="`mailto:${s.email}`" class="text-blue-600 hover:underline font-medium" x-text="s.email"></a>
-                    </template>
-                    <template x-if="!s.email">
-                      <span class="text-slate-400">-</span>
-                    </template>
+                    <div class="text-slate-800 font-medium" x-text="s.contact_person || '-'"></div>
+                    <div class="text-[11px] text-slate-500" x-text="s.role_designation || ''"></div>
                   </td>
-                  <td class="p-3 align-top whitespace-nowrap">
-                    <template x-if="s.phone_whatsapp">
+                  <td class="p-3 align-top space-y-0.5">
+                    <div x-show="s.email">
+                      <a :href="`mailto:${s.email}`" class="text-blue-600 hover:underline font-medium" x-text="s.email"></a>
+                    </div>
+                    <div x-show="s.phone_whatsapp" class="whitespace-nowrap">
                       <a :href="waLink(s.phone_whatsapp)" target="_blank" rel="noopener noreferrer"
-                         class="inline-flex items-center gap-1.5 text-emerald-700 hover:underline font-semibold">
+                         class="inline-flex items-center gap-1 text-emerald-700 hover:underline font-semibold">
                         <span x-text="s.phone_whatsapp"></span>
                         <span class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-bold">WA</span>
                       </a>
-                    </template>
-                    <template x-if="!s.phone_whatsapp">
-                      <span class="text-slate-400">-</span>
-                    </template>
+                    </div>
+                    <span x-show="!s.email && !s.phone_whatsapp" class="text-slate-400">-</span>
                   </td>
-                  <td class="p-3 align-top text-slate-700 whitespace-nowrap" x-text="s.facility_type || '-'"></td>
-                  <td class="p-3 align-top text-slate-600 max-w-[180px]" x-text="s.city_country || '-'"></td>
+                  <td class="p-3 align-top">
+                    <div class="font-semibold text-slate-800" x-text="s.facility_type || '-'"></div>
+                    <div x-show="s.monthly_capacity" class="text-[11px] text-slate-600 mt-0.5" x-text="`Cap: ${s.monthly_capacity}`"></div>
+                  </td>
+                  <td class="p-3 align-top space-y-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                            :class="qualificationScore(s) >= 4 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
+                            x-text="`Verified: ${qualificationScore(s)}/5`"></span>
+                    </div>
+                    <div x-show="s.certifications" class="text-[11px] text-slate-600 max-w-[170px] truncate" :title="s.certifications" x-text="`Certs: ${s.certifications}`"></div>
+                    <div class="flex flex-wrap gap-1.5 text-[10px]">
+                      <a x-show="s.coa_doc_url" :href="s.coa_doc_url" target="_blank" class="text-blue-600 hover:underline font-semibold">COA</a>
+                      <a x-show="s.media_folder_url" :href="s.media_folder_url" target="_blank" class="text-purple-600 hover:underline font-semibold">Photos/Videos</a>
+                      <span x-show="s.facility_photo_data" class="text-teal-700 font-semibold">Photo Attached</span>
+                    </div>
+                  </td>
                   <td class="p-3 align-top max-w-[200px]">
                     <template x-if="!s.linked_products || s.linked_products.length === 0">
                       <span class="text-slate-400">-</span>
@@ -330,6 +528,7 @@
                             :class="s.is_archived ? 'text-emerald-600' : 'text-amber-600'"
                             class="hover:underline font-semibold"
                             x-text="s.is_archived ? 'Restore' : 'Archive'"></button>
+                    <button x-show="canPermanentDelete" @click="deleteSupplier(s)" class="text-red-600 hover:underline font-semibold">Delete</button>
                   </td>
                 </tr>
               </template>
@@ -347,7 +546,7 @@
           <select x-model="selectedOrderId" class="border border-slate-300 rounded px-3 py-2 text-sm w-full max-w-md bg-slate-50 font-medium">
             <option value="">-- Select a Buyer Enquiry --</option>
             <template x-for="o in orders" :key="o.id">
-              <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}${o.destination_country ? ' (' + o.destination_country + ')' : ''} (${o.items.length} products)`"></option>
+              <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}${o.destination_country ? ' (' + o.destination_country + ')' : ''} [${o.status || 'Received'}] (${o.items.length} products)`"></option>
             </template>
           </select>
         </div>
@@ -376,8 +575,23 @@
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-0.5 rounded" x-text="activeOrder.order_code"></span>
                   <h2 class="text-xl font-bold text-slate-900" x-text="activeOrder.buyer_name"></h2>
+                  <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                    <span class="text-[11px] font-bold text-amber-900">Enquiry Status:</span>
+                    <select x-model="activeOrder.status" @change="updateOrderStatus(activeOrder)"
+                            class="bg-transparent text-xs font-bold text-amber-900 focus:outline-none cursor-pointer">
+                      <option>Received</option>
+                      <option>Clarification Pending</option>
+                      <option>Requirement Confirmed</option>
+                      <option>Sourcing</option>
+                      <option>GL Quote Sent</option>
+                      <option>Negotiation</option>
+                      <option>Confirmed for Execution</option>
+                      <option>Closed</option>
+                      <option>On Hold</option>
+                    </select>
+                  </div>
                   <span x-show="activeOrder.enquiry_source" class="bg-slate-100 text-slate-700 text-xs font-semibold px-2 py-0.5 rounded" x-text="`Source: ${activeOrder.enquiry_source}`"></span>
-                  <span x-show="activeOrder.gl_team" class="bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold px-2 py-0.5 rounded" x-text="`Team: ${activeOrder.gl_team}`"></span>
+                  <span x-show="activeOrder.gl_team" class="bg-teal-50 text-teal-800 border border-teal-200 text-xs font-semibold px-2 py-0.5 rounded" x-text="`Owner / Team: ${activeOrder.gl_team}`"></span>
                 </div>
 
                 <div class="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600">
@@ -414,7 +628,7 @@
                 <button @click="openAddProductModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded text-sm font-medium shadow-sm">
                   + Add Product to Enquiry
                 </button>
-                <button @click="deleteOrder(activeOrder.id)" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 px-3 py-2 rounded text-xs font-semibold">
+                <button x-show="canPermanentDelete" @click="deleteOrder(activeOrder.id)" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 px-3 py-2 rounded text-xs font-semibold">
                   Delete Enquiry
                 </button>
               </div>
@@ -462,7 +676,7 @@
                         <button @click="openEditProductModal(item)" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1.5 rounded">
                           Edit Product
                         </button>
-                        <button @click="deleteProduct(item.id)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1">Delete Product</button>
+                        <button x-show="canPermanentDelete" @click="deleteProduct(item.id)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1">Delete Product</button>
                       </div>
                     </div>
 
@@ -480,10 +694,10 @@
                               <th class="p-2.5">Margin</th>
                               <th class="p-2.5">MOQ &amp; Packaging</th>
                               <th class="p-2.5">Lead Time</th>
-                              <th class="p-2.5">Current Status</th>
+                              <th class="p-2.5">Supplier Status</th>
                               <th class="p-2.5">Sample AWB / Notes</th>
                               <th class="p-2.5 text-center">Award</th>
-                              <th class="p-2.5"></th>
+                              <th class="p-2.5" x-show="canPermanentDelete"></th>
                             </tr>
                           </thead>
                           <tbody class="divide-y divide-slate-100">
@@ -525,15 +739,15 @@
                                   </div>
                                 </td>
                                 <td class="p-2.5 align-top">
-                                  <select x-model="q.status" @change="updateQuote(q)"
+                                  <select x-model="q.status" @change="onSupplierStatusChange(q)"
                                           class="border border-slate-300 rounded px-2 py-1 text-xs font-medium bg-white">
-                                    <option>1 - RFQ Sent</option>
-                                    <option>2 - Quote Received</option>
-                                    <option>3 - Sample Requested</option>
-                                    <option>4 - Sample Received</option>
-                                    <option>5 - Sample Approved</option>
-                                    <option>6 - Awarded / PO Issued</option>
-                                    <option>7 - Rejected / Backup</option>
+                                    <option>RFQ Sent</option>
+                                    <option>Quote Received</option>
+                                    <option>Sample Requested</option>
+                                    <option>Sample Received</option>
+                                    <option>Sample Approved</option>
+                                    <option>Selected</option>
+                                    <option>Not Selected</option>
                                   </select>
                                 </td>
                                 <td class="p-2.5 align-top space-y-1 min-w-[170px]">
@@ -546,8 +760,8 @@
                                   <input type="checkbox" :checked="q.is_selected == 1" @change="toggleWinner(q)"
                                          class="w-4 h-4 accent-emerald-600 cursor-pointer" title="Select winning supplier" />
                                 </td>
-                                <td class="p-2.5 align-top text-right">
-                                  <button @click="deleteQuote(q.id)" class="text-slate-400 hover:text-red-600 font-bold">&times;</button>
+                                <td x-show="canPermanentDelete" class="p-2.5 align-top text-right">
+                                  <button @click="deleteQuote(q.id)" class="text-slate-400 hover:text-red-600 font-bold" title="Delete quote">&times;</button>
                                 </td>
                               </tr>
                             </template>
@@ -592,7 +806,7 @@
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
           <div>
-            <h2 class="text-base font-bold text-slate-900">Order Processing — Awarded &amp; PO Issued Lines (<span x-text="filteredAwardedOrderRows.length"></span>)</h2>
+            <h2 class="text-base font-bold text-slate-900">Order Processing — Selected &amp; Confirmed Lines (<span x-text="filteredAwardedOrderRows.length"></span>)</h2>
             <p class="text-xs text-slate-500">Manage commercial terms (FOB/FOR), payment modes (Irrevocable LC / Advance), QC, shipping docs (BL, Shipping Bill, COO/Phyto), and printable PI / PO previews.</p>
           </div>
         </div>
@@ -604,7 +818,7 @@
                 <th class="p-3">Enquiry / PO #</th>
                 <th class="p-3">Buyer &amp; Destination</th>
                 <th class="p-3">Product &amp; Qty</th>
-                <th class="p-3">Awarded Supplier &amp; Quote</th>
+                <th class="p-3">Selected Supplier &amp; Quote</th>
                 <th class="p-3">Incoterms &amp; Payment Mode</th>
                 <th class="p-3">QC &amp; Shipping Docs (BL / SB / Container)</th>
                 <th class="p-3">Execution Stage</th>
@@ -615,7 +829,7 @@
               <template x-if="filteredAwardedOrderRows.length === 0">
                 <tr>
                   <td colspan="8" class="p-8 text-center text-slate-400">
-                    No matching orders found. Tick <strong>Award</strong> on a supplier quote inside <strong>Buyer Enquiries</strong> to move it into Order Processing.
+                    No matching orders found. Select a supplier (<strong>Selected</strong> / <strong>Award</strong>) inside <strong>Buyer Enquiries</strong> to move it into Order Processing.
                   </td>
                 </tr>
               </template>
@@ -773,9 +987,9 @@
     </div>
   </div>
 
-  <!-- MODAL 2A: VIEW SUPPLIER PROFILE -->
+  <!-- MODAL 2A: VIEW SUPPLIER PROFILE & QUALIFICATION -->
   <div x-show="modals.viewSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
       <div class="flex justify-between items-start border-b pb-3">
         <div>
           <span class="font-mono text-xs font-bold text-emerald-700" x-text="viewingSupplier?.supplier_code"></span>
@@ -805,13 +1019,44 @@
           <span x-show="!viewingSupplier?.phone_whatsapp">-</span>
         </div>
         <div>
-          <span class="text-slate-400 block">Facility Type</span>
-          <strong class="text-slate-800" x-text="viewingSupplier?.facility_type || '-'"></strong>
+          <span class="text-slate-400 block">Facility Type &amp; Capacity</span>
+          <strong class="text-slate-800" x-text="`${viewingSupplier?.facility_type || '-'}${viewingSupplier?.monthly_capacity ? ' (' + viewingSupplier.monthly_capacity + ')' : ''}`"></strong>
         </div>
         <div>
           <span class="text-slate-400 block">Facility Address</span>
           <strong class="text-slate-800" x-text="viewingSupplier?.city_country || '-'"></strong>
         </div>
+
+        <!-- Supplier Qualification Checklist Summary -->
+        <div class="col-span-2 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-700">Supplier Qualification &amp; Verification Checklist</span>
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800"
+                  x-text="`${qualificationScore(viewingSupplier)} / 5 Completed`"></span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+            <div x-text="`${viewingSupplier?.qual_kyc_gst ? '✅' : '⬜'} KYC / GST / IEC Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_facility_verified ? '✅' : '⬜'} Facility Audited / Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_capacity_verified ? '✅' : '⬜'} Production Capacity Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_certs_verified ? '✅' : '⬜'} Certifications Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_coa_verified ? '✅' : '⬜'} Product COA / Lab Specs`"></div>
+          </div>
+          <div class="pt-1 border-t border-slate-200 space-y-1">
+            <div><strong>Certifications:</strong> <span x-text="viewingSupplier?.certifications || 'None listed'"></span></div>
+            <div x-show="viewingSupplier?.coa_doc_url">
+              <strong>Product COA / Spec Link:</strong>
+              <a :href="viewingSupplier?.coa_doc_url" target="_blank" class="text-blue-600 hover:underline break-all" x-text="viewingSupplier?.coa_doc_url"></a>
+            </div>
+            <div x-show="viewingSupplier?.media_folder_url">
+              <strong>Facility Photos &amp; Videos Folder:</strong>
+              <a :href="viewingSupplier?.media_folder_url" target="_blank" class="text-purple-700 hover:underline break-all" x-text="viewingSupplier?.media_folder_url"></a>
+            </div>
+            <div x-show="viewingSupplier?.facility_photo_data" class="pt-1">
+              <img :src="viewingSupplier?.facility_photo_data" alt="Facility Photo" class="max-h-40 rounded border border-slate-300" />
+            </div>
+          </div>
+        </div>
+
         <div class="col-span-2">
           <span class="text-slate-400 block mb-1">Linked Products (<span x-text="viewingSupplier?.linked_products?.length || 0"></span>)</span>
           <div class="flex flex-wrap gap-1.5">
@@ -832,10 +1077,10 @@
     </div>
   </div>
 
-  <!-- MODAL 2B: ADD / EDIT SUPPLIER -->
+  <!-- MODAL 2B: ADD / EDIT SUPPLIER & QUALIFICATION CHECKLIST -->
   <div x-show="modals.supplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.supplier.id ? 'Edit Supplier' : 'Add New Supplier'"></h3>
+    <div class="bg-white rounded-lg max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.supplier.id ? 'Edit Supplier &amp; Qualification' : 'Add New Supplier'"></h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
         <div>
           <label class="text-xs font-semibold text-slate-600">1. Supplier ID (Auto-Generated)</label>
@@ -884,9 +1129,69 @@
           <input x-model="forms.supplier.city_country" placeholder="Full plant / warehouse / office address" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
 
-        <!-- 9. Multi-Product Picker from Products Tab -->
+        <!-- 9. Supplier Qualification Checklist & Media/Docs -->
+        <div class="md:col-span-2 border-t pt-3 space-y-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-700">9. Supplier Qualification Checklist, Capacity &amp; Media</span>
+            <span class="text-xs font-bold text-emerald-700" x-text="`${qualificationScore(forms.supplier)} / 5 Verified`"></span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_kyc_gst" class="accent-emerald-600" />
+              <span>KYC / GST / IEC Checked</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_facility_verified" class="accent-emerald-600" />
+              <span>Facility Verified</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_capacity_verified" class="accent-emerald-600" />
+              <span>Capacity Verified</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_certs_verified" class="accent-emerald-600" />
+              <span>Certifications Verified</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_coa_verified" class="accent-emerald-600" />
+              <span>Product COA Reviewed</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="font-semibold text-slate-600">Certifications (FSSAI, APEDA, ISO, HACCP, Organic)</label>
+              <input x-model="forms.supplier.certifications" placeholder="e.g. FSSAI, APEDA, ISO 22000, Spices Board" class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-600">Monthly Production / Processing Capacity</label>
+              <input x-model="forms.supplier.monthly_capacity" placeholder="e.g. 250 MT / Month" class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-600">Product COA &amp; Spec Documents (Drive / PDF URL)</label>
+              <input x-model="forms.supplier.coa_doc_url" placeholder="https://drive.google.com/..." class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-600">Photos &amp; Videos Folder Link (Google Drive / YouTube)</label>
+              <input x-model="forms.supplier.media_folder_url" placeholder="https://drive.google.com/... (Plant photos &amp; walk-through videos)" class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="font-semibold text-slate-600">Quick Facility Photo Snapshot (Auto-compressed thumbnail)</label>
+              <input type="file" accept="image/*" @change="handleFacilityPhotoUpload($event)" class="w-full border rounded px-3 py-1.5 mt-1 bg-white text-xs" />
+              <template x-if="forms.supplier.facility_photo_data">
+                <div class="mt-2 flex items-center gap-3">
+                  <img :src="forms.supplier.facility_photo_data" class="h-16 rounded border border-slate-300" />
+                  <button type="button" @click="forms.supplier.facility_photo_data = ''" class="text-red-600 hover:underline font-semibold">Remove Photo</button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10. Multi-Product Picker from Products Tab -->
         <div class="md:col-span-2 border-t pt-3 space-y-2">
-          <label class="text-xs font-semibold text-slate-700 block">9. Products (Select from Products Tab)</label>
+          <label class="text-xs font-semibold text-slate-700 block">10. Products (Select from Products Tab)</label>
           <div class="flex gap-2">
             <select x-model="selectedProductToLink" class="flex-1 border rounded px-3 py-2 text-xs bg-white">
               <option value="">-- Select Product ID &amp; Product Name --</option>
@@ -991,8 +1296,13 @@
                  placeholder="e.g. Irrevocable LC or 85% Advance" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-600">GL Team</label>
-          <input x-model="forms.order.gl_team" placeholder="e.g. Sourcing / Export Desk" class="w-full border rounded px-3 py-2 mt-1" />
+          <label class="text-xs font-semibold text-slate-600">Owner / GL Team</label>
+          <select x-model="forms.order.gl_team" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option value="">Select Owner...</option>
+            <template x-for="u in users" :key="u.id">
+              <option :value="u.name" x-text="u.name"></option>
+            </template>
+          </select>
         </div>
         <div>
           <label class="text-xs font-semibold text-slate-600">Buyer Documents (Links / File Refs)</label>
@@ -1148,13 +1458,15 @@
             <input type="number" x-model="forms.quote.lead_time_days" placeholder="e.g. 7" class="w-full border rounded px-3 py-2 mt-1" />
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-600">Sourcing Status</label>
+            <label class="text-xs font-semibold text-slate-600">Supplier Status</label>
             <select x-model="forms.quote.status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
-              <option>1 - RFQ Sent</option>
-              <option>2 - Quote Received</option>
-              <option>3 - Sample Requested</option>
-              <option>4 - Sample Received</option>
-              <option>5 - Sample Approved</option>
+              <option>RFQ Sent</option>
+              <option>Quote Received</option>
+              <option>Sample Requested</option>
+              <option>Sample Received</option>
+              <option>Sample Approved</option>
+              <option>Selected</option>
+              <option>Not Selected</option>
             </select>
           </div>
         </div>
@@ -1265,7 +1577,6 @@
   <!-- MODAL 7: PRINTABLE PROFORMA INVOICE (PI) & SUPPLIER PURCHASE ORDER (PO) PREVIEW -->
   <div x-show="modals.docPreview" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl">
-      <!-- Top Action Toolbar (Hidden when printing) -->
       <div class="no-print sticky top-0 z-10 bg-slate-900 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Document Preview:</span>
@@ -1294,15 +1605,21 @@
         </div>
       </div>
 
-      <!-- Printable Sheet Content -->
       <template x-if="docPreviewRow">
         <div id="printable-doc-area" class="p-8 space-y-6 text-slate-900 text-xs">
-          <!-- Company Letterhead & Document Title -->
           <div class="flex justify-between items-start border-b-2 border-slate-900 pb-4">
-            <div>
-              <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">GL GLOBAL</h2>
-              <p class="text-xs text-slate-600 mt-0.5">Merchant Export &amp; Domestic Commodity Sourcing</p>
-              <p class="text-xs text-slate-500">Chennai, Tamil Nadu, India &bull; business@glglobal.in &bull; glglobal.in</p>
+            <div class="flex items-center gap-3">
+              <svg class="w-11 h-11 shrink-0" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="14" fill="#0f172a"/>
+                <rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#14b8a6" stroke-width="3.5"/>
+                <text x="32" y="42" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="28" fill="#ffffff" text-anchor="middle">GL</text>
+                <circle cx="50" cy="16" r="5" fill="#10b981"/>
+              </svg>
+              <div>
+                <h2 class="text-2xl font-extrabold tracking-tight text-slate-900" x-text="systemSettings.companyName"></h2>
+                <p class="text-xs text-slate-600 mt-0.5">Merchant Export &amp; Domestic Commodity Sourcing</p>
+                <p class="text-xs text-slate-500" x-text="systemSettings.companyAddress"></p>
+              </div>
             </div>
             <div class="text-right">
               <span class="inline-block px-3 py-1 rounded text-xs font-extrabold uppercase tracking-wider"
@@ -1328,9 +1645,7 @@
             </div>
           </div>
 
-          <!-- Party & Commercial Details -->
           <div class="grid grid-cols-2 gap-6">
-            <!-- Left Box: Counterparty -->
             <div class="border border-slate-300 rounded p-3.5 space-y-1">
               <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
                    x-text="docPreviewType === 'PI' ? 'Consignee / Buyer Details' : 'Supplier / Vendor Details'"></div>
@@ -1354,7 +1669,6 @@
               </template>
             </div>
 
-            <!-- Right Box: Commercial & Dispatch Terms -->
             <div class="border border-slate-300 rounded p-3.5 space-y-1">
               <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Commercial &amp; Shipment Terms</div>
               <div class="grid grid-cols-2 gap-x-2 gap-y-1">
@@ -1380,7 +1694,6 @@
             </div>
           </div>
 
-          <!-- Line Item Table -->
           <div class="border border-slate-300 rounded overflow-hidden">
             <table class="w-full text-left border-collapse text-xs">
               <thead>
@@ -1388,12 +1701,8 @@
                   <th class="p-3 w-10">#</th>
                   <th class="p-3">Product Description &amp; Specifications</th>
                   <th class="p-3 text-right">Quantity</th>
-                  <th class="p-3 text-right">
-                    Unit Price (<span x-text="docPreviewRow.order.currency"></span>)
-                  </th>
-                  <th class="p-3 text-right">
-                    Total Amount (<span x-text="docPreviewRow.order.currency"></span>)
-                  </th>
+                  <th class="p-3 text-right">Unit Price (<span x-text="docPreviewRow.order.currency"></span>)</th>
+                  <th class="p-3 text-right">Total Amount (<span x-text="docPreviewRow.order.currency"></span>)</th>
                 </tr>
               </thead>
               <tbody>
@@ -1426,7 +1735,6 @@
             </table>
           </div>
 
-          <!-- Compliance, Documents & Remarks -->
           <div class="grid grid-cols-2 gap-6">
             <div class="border border-slate-200 rounded p-3 space-y-1 bg-slate-50">
               <div class="font-bold text-slate-700">Required Quality &amp; Shipping Documents</div>
@@ -1443,18 +1751,91 @@
             </div>
           </div>
 
-          <!-- Authorization Footer -->
           <div class="pt-8 flex justify-between items-end border-t border-slate-300">
             <div class="text-[11px] text-slate-500">
               This is a system-generated summary from GLDatabase Sourcing Desk.
             </div>
             <div class="text-right">
               <div class="h-10 border-b border-slate-400 w-48 mb-1"></div>
-              <div class="font-bold text-slate-800">Authorized Signatory — GL Global</div>
+              <div class="font-bold text-slate-800" x-text="`Authorized Signatory — ${systemSettings.companyName}`"></div>
             </div>
           </div>
         </div>
       </template>
+    </div>
+  </div>
+
+  <!-- MODAL 8: ADMIN USER MANAGEMENT & SYSTEM SETTINGS (ALEX & JESU DOSS ONLY) -->
+  <div x-show="modals.adminSettings && canManageAdmin" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">User Management &amp; System Settings</h3>
+          <p class="text-xs text-slate-500">Restricted to <strong>Alex</strong> and <strong>Jesu Doss</strong>.</p>
+        </div>
+        <button @click="modals.adminSettings = false" class="text-slate-500 hover:text-slate-800 font-bold text-lg">&times;</button>
+      </div>
+
+      <!-- User Roles & PIN Management -->
+      <div class="space-y-2">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">Team Access &amp; Optional Sign-In PINs</h4>
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b">
+                <th class="p-2.5">User</th>
+                <th class="p-2.5">Role</th>
+                <th class="p-2.5">Permissions</th>
+                <th class="p-2.5">Optional PIN</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-for="u in users" :key="u.id">
+                <tr>
+                  <td class="p-2.5 font-bold text-slate-900" x-text="u.name"></td>
+                  <td class="p-2.5">
+                    <select x-model="u.role" @change="saveAccessConfig()" class="border rounded px-2 py-1 bg-white font-semibold">
+                      <option value="admin">Admin</option>
+                      <option value="ops">Operations</option>
+                    </select>
+                  </td>
+                  <td class="p-2.5 text-slate-600"
+                      x-text="u.role === 'admin' ? 'View, Edit, Archive, Delete, User & System Admin' : 'View, Operational Edit & Archive (No Delete/Admin)'"></td>
+                  <td class="p-2.5">
+                    <input type="text" x-model="u.pin" @change="saveAccessConfig()" placeholder="No PIN"
+                           class="w-24 border rounded px-2 py-1 font-mono" />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- System Settings -->
+      <div class="space-y-3 border-t pt-4 text-xs">
+        <h4 class="font-bold uppercase tracking-wider text-slate-600">System &amp; Document Letterhead Settings</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-600">Company Name</label>
+            <input x-model="systemSettings.companyName" @change="saveAccessConfig()" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-600">Default Currency</label>
+            <select x-model="systemSettings.defaultCurrency" @change="saveAccessConfig()" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+              <option>USD</option><option>INR</option><option>EUR</option><option>AED</option><option>GBP</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-semibold text-slate-600">Header Contact Line</label>
+            <input x-model="systemSettings.companyAddress" @change="saveAccessConfig()" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t">
+        <button @click="modals.adminSettings = false" class="bg-slate-900 text-white px-4 py-2 rounded text-xs font-semibold">Done</button>
+      </div>
     </div>
   </div>
 
@@ -1473,8 +1854,25 @@
 
   <script>
     function sourcingApp() {
+      const DEFAULT_USERS = [
+        { id: 'alex', name: 'Alex', role: 'admin', roleLabel: 'Admin (Full Access)', pin: '' },
+        { id: 'doss', name: 'Jesu Doss', role: 'admin', roleLabel: 'Admin (Full Access)', pin: '' },
+        { id: 'tony', name: 'Tony', role: 'ops', roleLabel: 'Operations (Edit & Archive)', pin: '' },
+        { id: 'william', name: 'William', role: 'ops', roleLabel: 'Operations (Edit & Archive)', pin: '' },
+      ];
+
       return {
-        activeTab: 'glProducts',
+        users: DEFAULT_USERS,
+        currentUser: null,
+        loginForm: { userId: 'doss', pin: '' },
+        loginError: '',
+        systemSettings: {
+          companyName: 'GL GLOBAL',
+          companyAddress: 'Chennai, Tamil Nadu, India • business@glglobal.in • glglobal.in',
+          defaultCurrency: 'USD',
+        },
+        activeTab: 'dashboard',
+        dashboardOwnerFilter: 'ALL',
         buyerSearch: '',
         supplierSearch: '',
         supplierStatusFilter: 'ALL',
@@ -1504,6 +1902,7 @@
           assignSupplier: false,
           execution: false,
           docPreview: false,
+          adminSettings: false,
         },
         forms: {
           glProduct: {
@@ -1528,6 +1927,16 @@
             email: '',
             facility_type: 'Manufacturing',
             city_country: '',
+            monthly_capacity: '',
+            certifications: '',
+            coa_doc_url: '',
+            media_folder_url: '',
+            facility_photo_data: '',
+            qual_kyc_gst: false,
+            qual_facility_verified: false,
+            qual_capacity_verified: false,
+            qual_certs_verified: false,
+            qual_coa_verified: false,
             linked_products: [],
             supplier_status: 'Under Verification',
             is_archived: 0,
@@ -1543,6 +1952,7 @@
             currency: 'USD',
             incoterms: 'FOB',
             payment_terms: 'TBA',
+            status: 'Received',
             gl_team: '',
             buyer_documents: '',
             general_notes: '',
@@ -1550,7 +1960,7 @@
             products: [],
           },
           singleProduct: { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
-          quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: '1 - RFQ Sent', remarks: '' },
+          quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: 'RFQ Sent', remarks: '' },
           execution: {
             quoteRef: null,
             order_code: '',
@@ -1572,6 +1982,198 @@
           },
         },
 
+        // --- ROLE & ACCESS CONTROL ---
+        get selectedLoginUser() {
+          return this.users.find((u) => u.id === this.loginForm.userId) || null;
+        },
+
+        get canManageAdmin() {
+          return this.currentUser && (this.currentUser.role === 'admin' || ['alex', 'doss'].includes(this.currentUser.id));
+        },
+
+        get canPermanentDelete() {
+          return this.canManageAdmin;
+        },
+
+        loadAccessConfig() {
+          try {
+            const savedUsers = JSON.parse(localStorage.getItem('gl_users_config') || 'null');
+            if (Array.isArray(savedUsers) && savedUsers.length) {
+              this.users = savedUsers;
+            }
+            const savedSettings = JSON.parse(localStorage.getItem('gl_system_settings') || 'null');
+            if (savedSettings && typeof savedSettings === 'object') {
+              this.systemSettings = { ...this.systemSettings, ...savedSettings };
+            }
+            const activeUserId = sessionStorage.getItem('gl_active_user_id');
+            if (activeUserId) {
+              this.currentUser = this.users.find((u) => u.id === activeUserId) || null;
+            }
+          } catch (_) {}
+        },
+
+        saveAccessConfig() {
+          localStorage.setItem('gl_users_config', JSON.stringify(this.users));
+          localStorage.setItem('gl_system_settings', JSON.stringify(this.systemSettings));
+          if (this.currentUser) {
+            this.currentUser = this.users.find((u) => u.id === this.currentUser.id) || this.currentUser;
+          }
+        },
+
+        submitLogin() {
+          this.loginError = '';
+          const user = this.selectedLoginUser;
+          if (!user) return;
+          if (user.pin && String(user.pin) !== String(this.loginForm.pin)) {
+            this.loginError = 'Incorrect PIN for ' + user.name;
+            return;
+          }
+          this.currentUser = user;
+          this.loginForm.pin = '';
+          sessionStorage.setItem('gl_active_user_id', user.id);
+        },
+
+        logoutUser() {
+          this.currentUser = null;
+          sessionStorage.removeItem('gl_active_user_id');
+        },
+
+        // --- DASHBOARD COMPUTATIONS ---
+        get dashboardMetrics() {
+          const newEnquiries = [];
+          const quotesPending = [];
+          const samplesPending = [];
+          const awaitingBuyer = [];
+
+          for (const order of this.orders) {
+            const st = order.status || 'Received';
+            if (['Received', 'Clarification Pending', 'Requirement Confirmed'].includes(st)) {
+              newEnquiries.push(order);
+            }
+            if (['GL Quote Sent', 'Negotiation'].includes(st)) {
+              awaitingBuyer.push(order);
+            }
+            for (const item of order.items || []) {
+              for (const q of item.quotes || []) {
+                if (q.status === 'RFQ Sent') {
+                  quotesPending.push({ order, item, quote: q });
+                }
+                if (['Sample Requested', 'Sample Received'].includes(q.status)) {
+                  samplesPending.push({ order, item, quote: q });
+                }
+              }
+            }
+          }
+
+          return { newEnquiries, quotesPending, samplesPending, awaitingBuyer };
+        },
+
+        countOrdersByStage(stage) {
+          return this.awardedOrderRows.filter((r) => (r.quote.execution_stage || 'PO Issued') === stage).length;
+        },
+
+        get dashboardActionItems() {
+          const actions = [];
+
+          for (const order of this.dashboardMetrics.newEnquiries) {
+            actions.push({
+              key: `enq-${order.id}`,
+              category: 'New Enquiry',
+              badgeClass: 'bg-sky-100 text-sky-800',
+              ref: order.order_code,
+              party: order.buyer_name,
+              product: `${(order.items || []).length} product line(s)`,
+              stage: order.status || 'Received',
+              nextAction: order.status === 'Clarification Pending' ? 'Follow up buyer specs' : 'Confirm specs & send RFQs to suppliers',
+              owner: order.gl_team || 'Jesu Doss',
+              openFn: () => {
+                this.selectedOrderId = order.id;
+                this.activeTab = 'orders';
+              },
+            });
+          }
+
+          for (const { order, item, quote } of this.dashboardMetrics.quotesPending) {
+            actions.push({
+              key: `qp-${quote.id}`,
+              category: 'Quote Pending',
+              badgeClass: 'bg-amber-100 text-amber-800',
+              ref: order.order_code,
+              party: `${quote.supplier_name} (for ${order.buyer_name})`,
+              product: item.product_name,
+              stage: 'RFQ Sent',
+              nextAction: 'Follow up supplier price & MOQ',
+              owner: order.gl_team || 'Tony',
+              openFn: () => this.openOrderFromProcessing(order.id, item.id),
+            });
+          }
+
+          for (const { order, item, quote } of this.dashboardMetrics.samplesPending) {
+            actions.push({
+              key: `sp-${quote.id}`,
+              category: 'Sample Pending',
+              badgeClass: 'bg-teal-100 text-teal-800',
+              ref: order.order_code,
+              party: `${quote.supplier_name} (for ${order.buyer_name})`,
+              product: item.product_name,
+              stage: quote.status,
+              nextAction: quote.status === 'Sample Requested' ? 'Collect courier AWB & track sample' : 'Complete QC check & approve sample',
+              owner: order.gl_team || 'William',
+              openFn: () => this.openOrderFromProcessing(order.id, item.id),
+            });
+          }
+
+          for (const order of this.dashboardMetrics.awaitingBuyer) {
+            actions.push({
+              key: `ab-${order.id}`,
+              category: 'Awaiting Buyer',
+              badgeClass: 'bg-indigo-100 text-indigo-800',
+              ref: order.order_code,
+              party: order.buyer_name,
+              product: `${(order.items || []).length} product line(s)`,
+              stage: order.status,
+              nextAction: 'Follow up buyer feedback & close commercial terms',
+              owner: order.gl_team || 'Alex',
+              openFn: () => {
+                this.selectedOrderId = order.id;
+                this.activeTab = 'orders';
+              },
+            });
+          }
+
+          for (const row of this.awardedOrderRows) {
+            const st = row.quote.execution_stage || 'PO Issued';
+            if (st === 'Delivered') continue;
+            const nextMap = {
+              'PO Issued': 'Confirm supplier production schedule & advance/LC',
+              'Production / QC': 'Complete pre-shipment QC & COA sign-off',
+              'Docs & Customs': 'Verify BL/LR, Shipping Bill, COO & Phyto docs',
+              'Dispatched / On Board': 'Share final BL & docs with buyer; track ETA',
+            };
+            actions.push({
+              key: `op-${row.quote.id}`,
+              category: 'Order Execution',
+              badgeClass: 'bg-purple-100 text-purple-800',
+              ref: row.quote.po_number || row.order.order_code,
+              party: `${row.order.buyer_name} ← ${row.quote.supplier_name}`,
+              product: `${row.item.product_name} (${row.item.required_qty} ${row.item.unit})`,
+              stage: st,
+              nextAction: nextMap[st] || 'Update shipment milestone',
+              owner: row.order.gl_team || 'Jesu Doss',
+              openFn: () => {
+                this.activeTab = 'orderProcessing';
+              },
+            });
+          }
+
+          return actions;
+        },
+
+        get filteredDashboardActionItems() {
+          if (this.dashboardOwnerFilter === 'ALL') return this.dashboardActionItems;
+          return this.dashboardActionItems.filter((a) => a.owner === this.dashboardOwnerFilter);
+        },
+
         get activeOrder() {
           return this.orders.find((o) => String(o.id) === String(this.selectedOrderId)) || null;
         },
@@ -1589,7 +2191,7 @@
           for (const order of this.orders) {
             for (const item of order.items || []) {
               for (const quote of item.quotes || []) {
-                if (Number(quote.is_selected) === 1 || quote.status === '6 - Awarded / PO Issued') {
+                if (Number(quote.is_selected) === 1 || quote.status === 'Selected') {
                   if (!quote.execution_stage) quote.execution_stage = 'PO Issued';
                   if (!quote.qc_status) quote.qc_status = 'Pending QC';
                   rows.push({ order, item, quote });
@@ -1674,10 +2276,23 @@
               s.email,
               s.facility_type,
               s.city_country,
+              s.certifications,
+              s.monthly_capacity,
               productNames,
               s.supplier_status,
             ].some((field) => String(field || '').toLowerCase().includes(q));
           });
+        },
+
+        qualificationScore(s) {
+          if (!s) return 0;
+          return [
+            s.qual_kyc_gst,
+            s.qual_facility_verified,
+            s.qual_capacity_verified,
+            s.qual_certs_verified,
+            s.qual_coa_verified,
+          ].filter(Boolean).length;
         },
 
         supplierStatusBadge(status) {
@@ -1792,7 +2407,7 @@
             'Required Qty',
             'Unit',
             'Buyer Target Price',
-            'Awarded Supplier',
+            'Selected Supplier',
             'Supplier Contact',
             'Supplier Phone/WA',
             'Quoted Price',
@@ -1866,6 +2481,7 @@
         },
 
         async init() {
+          this.loadAccessConfig();
           await this.loadAll();
           if (this.orders.length > 0 && !this.selectedOrderId) {
             this.selectedOrderId = this.orders[0].id;
@@ -1873,6 +2489,30 @@
               this.expandedItems[this.orders[0].items[0].id] = true;
             }
           }
+        },
+
+        normalizeSupplierStatus(status) {
+          const s = String(status || '').replace(/^\d+\s*-\s*/, '').trim();
+          if (s === 'Awarded / PO Issued') return 'Selected';
+          if (s === 'Rejected / Backup') return 'Not Selected';
+          const allowed = ['RFQ Sent', 'Quote Received', 'Sample Requested', 'Sample Received', 'Sample Approved', 'Selected', 'Not Selected'];
+          return allowed.includes(s) ? s : 'RFQ Sent';
+        },
+
+        normalizeEnquiryStatus(status) {
+          const s = String(status || '').trim();
+          const allowed = [
+            'Received',
+            'Clarification Pending',
+            'Requirement Confirmed',
+            'Sourcing',
+            'GL Quote Sent',
+            'Negotiation',
+            'Confirmed for Execution',
+            'Closed',
+            'On Hold',
+          ];
+          return allowed.includes(s) ? s : 'Received';
         },
 
         async loadAll() {
@@ -1884,8 +2524,26 @@
           this.glProducts = await gpRes.json();
           const dir = await dirRes.json();
           this.buyers = dir.buyers || [];
-          this.suppliers = dir.suppliers || [];
-          this.orders = await ordRes.json();
+          this.suppliers = (dir.suppliers || []).map((s) => ({
+            ...s,
+            qual_kyc_gst: Boolean(Number(s.qual_kyc_gst)),
+            qual_facility_verified: Boolean(Number(s.qual_facility_verified)),
+            qual_capacity_verified: Boolean(Number(s.qual_capacity_verified)),
+            qual_certs_verified: Boolean(Number(s.qual_certs_verified)),
+            qual_coa_verified: Boolean(Number(s.qual_coa_verified)),
+          }));
+          const rawOrders = await ordRes.json();
+          this.orders = (rawOrders || []).map((o) => ({
+            ...o,
+            status: this.normalizeEnquiryStatus(o.status),
+            items: (o.items || []).map((item) => ({
+              ...item,
+              quotes: (item.quotes || []).map((q) => ({
+                ...q,
+                status: Number(q.is_selected) === 1 ? 'Selected' : this.normalizeSupplierStatus(q.status),
+              })),
+            })),
+          }));
         },
 
         toggleItem(id) {
@@ -1960,7 +2618,8 @@
         },
 
         async deleteGlProduct(id) {
-          if (!confirm('Delete this product from Products?')) return;
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm('Permanently delete this product from Products?')) return;
           await fetch(`/api/gl-products/${id}`, { method: 'DELETE' });
           await this.loadAll();
         },
@@ -1988,14 +2647,15 @@
         },
 
         async deleteBuyer(buyer) {
-          if (!confirm(`Delete buyer "${buyer.company_name}"?`)) return;
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm(`Permanently delete buyer "${buyer.company_name}"?`)) return;
           const res = await fetch(`/api/buyers/${buyer.id}`, { method: 'DELETE' });
           const data = await res.json();
           if (!res.ok) return alert(data.error || 'Could not delete buyer');
           await this.loadAll();
         },
 
-        // --- SUPPLIER CRUD ---
+        // --- SUPPLIER CRUD & QUALIFICATION ---
         nextSupplierCode() {
           const maxNum = this.suppliers.reduce((max, s) => {
             const m = String(s.supplier_code || '').match(/(\d+)$/);
@@ -2019,6 +2679,16 @@
                 supplier_code: supplier.supplier_code || `GL-SUP-${String(supplier.id).padStart(4, '0')}`,
                 role_designation: supplier.role_designation || '',
                 facility_type: supplier.facility_type || 'Manufacturing',
+                monthly_capacity: supplier.monthly_capacity || '',
+                certifications: supplier.certifications || '',
+                coa_doc_url: supplier.coa_doc_url || '',
+                media_folder_url: supplier.media_folder_url || '',
+                facility_photo_data: supplier.facility_photo_data || '',
+                qual_kyc_gst: Boolean(supplier.qual_kyc_gst),
+                qual_facility_verified: Boolean(supplier.qual_facility_verified),
+                qual_capacity_verified: Boolean(supplier.qual_capacity_verified),
+                qual_certs_verified: Boolean(supplier.qual_certs_verified),
+                qual_coa_verified: Boolean(supplier.qual_coa_verified),
                 linked_products: Array.isArray(supplier.linked_products) ? [...supplier.linked_products] : [],
                 supplier_status: supplier.supplier_status || 'Under Verification',
                 is_archived: Number(supplier.is_archived) || 0,
@@ -2033,11 +2703,42 @@
                 email: '',
                 facility_type: 'Manufacturing',
                 city_country: '',
+                monthly_capacity: '',
+                certifications: '',
+                coa_doc_url: '',
+                media_folder_url: '',
+                facility_photo_data: '',
+                qual_kyc_gst: false,
+                qual_facility_verified: false,
+                qual_capacity_verified: false,
+                qual_certs_verified: false,
+                qual_coa_verified: false,
                 linked_products: [],
                 supplier_status: 'Under Verification',
                 is_archived: 0,
               };
           this.modals.supplier = true;
+        },
+
+        handleFacilityPhotoUpload(event) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const maxW = 640;
+              const scale = img.width > maxW ? maxW / img.width : 1;
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              this.forms.supplier.facility_photo_data = canvas.toDataURL('image/jpeg', 0.72);
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
         },
 
         addLinkedProductToSupplier() {
@@ -2095,6 +2796,15 @@
           await this.loadAll();
         },
 
+        async deleteSupplier(supplier) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm(`Permanently delete supplier "${supplier.company_name}"?`)) return;
+          const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not delete supplier');
+          await this.loadAll();
+        },
+
         // --- STEP 2: BUYER ENQUIRIES ---
         onSelectEnquiryBuyer() {
           const selected = this.buyers.find((b) => String(b.id) === String(this.forms.order.buyer_id));
@@ -2130,10 +2840,11 @@
             enquiry_source: 'Email',
             destination_country: '',
             destination_port: firstBuyer?.destination_port || '',
-            currency: 'USD',
+            currency: this.systemSettings.defaultCurrency || 'USD',
             incoterms: 'FOB',
             payment_terms: 'Irrevocable LC',
-            gl_team: '',
+            status: 'Received',
+            gl_team: this.currentUser?.name || '',
             buyer_documents: '',
             general_notes: '',
             target_delivery_date: '',
@@ -2171,8 +2882,17 @@
           this.selectedOrderId = data.id;
         },
 
+        async updateOrderStatus(order) {
+          await fetch(`/api/orders/${order.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: order.status }),
+          });
+        },
+
         async deleteOrder(orderId) {
-          if (!confirm('Delete this entire Buyer Enquiry and all its products/quotes?')) return;
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm('Permanently delete this entire Buyer Enquiry and all its products/quotes?')) return;
           await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
           this.selectedOrderId = '';
           await this.loadAll();
@@ -2212,7 +2932,8 @@
         },
 
         async deleteProduct(itemId) {
-          if (!confirm('Remove this product and all its supplier quotes?')) return;
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm('Permanently remove this product and all its supplier quotes?')) return;
           await fetch(`/api/items/${itemId}`, { method: 'DELETE' });
           await this.loadAll();
         },
@@ -2225,7 +2946,7 @@
             moq: '',
             moq_unit: item.unit || 'KG',
             lead_time_days: '',
-            status: '1 - RFQ Sent',
+            status: 'RFQ Sent',
             remarks: '',
           };
           this.modals.assignSupplier = true;
@@ -2247,10 +2968,9 @@
           await fetch(`/api/quotes/${q.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
         },
 
-        async toggleWinner(q) {
-          q.is_selected = q.is_selected ? 0 : 1;
+        async onSupplierStatusChange(q) {
+          q.is_selected = q.status === 'Selected' ? 1 : 0;
           if (q.is_selected) {
-            q.status = '6 - Awarded / PO Issued';
             if (!q.execution_stage) q.execution_stage = 'PO Issued';
             if (!q.payment_mode && this.activeOrder?.payment_terms) {
               q.payment_mode = this.activeOrder.payment_terms;
@@ -2260,7 +2980,23 @@
           await this.loadAll();
         },
 
+        async toggleWinner(q) {
+          q.is_selected = q.is_selected ? 0 : 1;
+          if (q.is_selected) {
+            q.status = 'Selected';
+            if (!q.execution_stage) q.execution_stage = 'PO Issued';
+            if (!q.payment_mode && this.activeOrder?.payment_terms) {
+              q.payment_mode = this.activeOrder.payment_terms;
+            }
+          } else if (q.status === 'Selected') {
+            q.status = 'Not Selected';
+          }
+          await this.updateQuote(q);
+          await this.loadAll();
+        },
+
         async deleteQuote(quoteId) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
           await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
           await this.loadAll();
         },

@@ -53,6 +53,15 @@ async function ensureSchema(db) {
       email TEXT,
       facility_type TEXT DEFAULT 'Manufacturing',
       city_country TEXT,
+      monthly_capacity TEXT DEFAULT '',
+      coa_doc_url TEXT DEFAULT '',
+      media_folder_url TEXT DEFAULT '',
+      facility_photo_data TEXT DEFAULT '',
+      qual_kyc_gst INTEGER DEFAULT 0,
+      qual_facility_verified INTEGER DEFAULT 0,
+      qual_capacity_verified INTEGER DEFAULT 0,
+      qual_certs_verified INTEGER DEFAULT 0,
+      qual_coa_verified INTEGER DEFAULT 0,
       linked_products_json TEXT DEFAULT '[]',
       supplier_status TEXT DEFAULT 'Under Verification',
       is_archived INTEGER DEFAULT 0,
@@ -167,6 +176,15 @@ async function ensureSchema(db) {
   await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN supplier_code TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN role_designation TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN facility_type TEXT DEFAULT 'Manufacturing'`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN monthly_capacity TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN coa_doc_url TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN media_folder_url TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN facility_photo_data TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN qual_kyc_gst INTEGER DEFAULT 0`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN qual_facility_verified INTEGER DEFAULT 0`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN qual_capacity_verified INTEGER DEFAULT 0`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN qual_certs_verified INTEGER DEFAULT 0`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN qual_coa_verified INTEGER DEFAULT 0`);
   await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN linked_products_json TEXT DEFAULT '[]'`);
   await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN supplier_status TEXT DEFAULT 'Under Verification'`);
   await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN is_archived INTEGER DEFAULT 0`);
@@ -291,6 +309,11 @@ export async function onRequest(context) {
         supplier_code: s.supplier_code || `GL-SUP-${String(s.id || idx + 1).padStart(4, '0')}`,
         linked_products: parseLinkedProducts(s.linked_products_json),
         is_archived: Number(s.is_archived) || 0,
+        qual_kyc_gst: Number(s.qual_kyc_gst) || 0,
+        qual_facility_verified: Number(s.qual_facility_verified) || 0,
+        qual_capacity_verified: Number(s.qual_capacity_verified) || 0,
+        qual_certs_verified: Number(s.qual_certs_verified) || 0,
+        qual_coa_verified: Number(s.qual_coa_verified) || 0,
       }));
       return jsonResponse({ buyers: buyers.rows, suppliers });
     }
@@ -349,6 +372,15 @@ export async function onRequest(context) {
         email,
         facility_type,
         city_country,
+        monthly_capacity,
+        coa_doc_url,
+        media_folder_url,
+        facility_photo_data,
+        qual_kyc_gst,
+        qual_facility_verified,
+        qual_capacity_verified,
+        qual_certs_verified,
+        qual_coa_verified,
         linked_products,
         supplier_status,
         certifications,
@@ -359,8 +391,11 @@ export async function onRequest(context) {
 
       const result = await db.execute({
         sql: `INSERT INTO suppliers
-              (supplier_code, company_name, contact_person, role_designation, phone_whatsapp, email, facility_type, city_country, linked_products_json, supplier_status, is_archived, specialties, certifications)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) RETURNING *`,
+              (supplier_code, company_name, contact_person, role_designation, phone_whatsapp, email, facility_type, city_country,
+               monthly_capacity, coa_doc_url, media_folder_url, facility_photo_data,
+               qual_kyc_gst, qual_facility_verified, qual_capacity_verified, qual_certs_verified, qual_coa_verified,
+               linked_products_json, supplier_status, is_archived, specialties, certifications)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) RETURNING *`,
         args: [
           supplier_code || '',
           company_name,
@@ -370,6 +405,15 @@ export async function onRequest(context) {
           email || '',
           facility_type || 'Manufacturing',
           city_country || '',
+          monthly_capacity || '',
+          coa_doc_url || '',
+          media_folder_url || '',
+          facility_photo_data || '',
+          qual_kyc_gst ? 1 : 0,
+          qual_facility_verified ? 1 : 0,
+          qual_capacity_verified ? 1 : 0,
+          qual_certs_verified ? 1 : 0,
+          qual_coa_verified ? 1 : 0,
           JSON.stringify(cleanLinked),
           supplier_status || 'Under Verification',
           specialtiesText,
@@ -392,7 +436,6 @@ export async function onRequest(context) {
       const supplierId = supplierMatch[1];
       if (method === 'PUT') {
         const body = await request.json();
-        // Handle Archive / Unarchive toggle
         if (body.archive_only) {
           await db.execute({
             sql: `UPDATE suppliers SET is_archived = ? WHERE id = ?`,
@@ -410,6 +453,15 @@ export async function onRequest(context) {
           email,
           facility_type,
           city_country,
+          monthly_capacity,
+          coa_doc_url,
+          media_folder_url,
+          facility_photo_data,
+          qual_kyc_gst,
+          qual_facility_verified,
+          qual_capacity_verified,
+          qual_certs_verified,
+          qual_coa_verified,
           linked_products,
           supplier_status,
           is_archived,
@@ -424,6 +476,9 @@ export async function onRequest(context) {
           sql: `UPDATE suppliers
                 SET supplier_code = ?, company_name = ?, contact_person = ?, role_designation = ?,
                     phone_whatsapp = ?, email = ?, facility_type = ?, city_country = ?,
+                    monthly_capacity = ?, coa_doc_url = ?, media_folder_url = ?, facility_photo_data = ?,
+                    qual_kyc_gst = ?, qual_facility_verified = ?, qual_capacity_verified = ?,
+                    qual_certs_verified = ?, qual_coa_verified = ?,
                     linked_products_json = ?, supplier_status = ?, is_archived = ?,
                     specialties = ?, certifications = ?
                 WHERE id = ?`,
@@ -436,6 +491,15 @@ export async function onRequest(context) {
             email || '',
             facility_type || 'Manufacturing',
             city_country || '',
+            monthly_capacity || '',
+            coa_doc_url || '',
+            media_folder_url || '',
+            facility_photo_data || '',
+            qual_kyc_gst ? 1 : 0,
+            qual_facility_verified ? 1 : 0,
+            qual_capacity_verified ? 1 : 0,
+            qual_certs_verified ? 1 : 0,
+            qual_coa_verified ? 1 : 0,
             JSON.stringify(cleanLinked),
             supplier_status || 'Under Verification',
             is_archived ? 1 : 0,
@@ -667,7 +731,10 @@ export async function onRequest(context) {
         'Specifications', 'Required Qty', 'Unit', 'Buyer Target Price', 'Awarded?',
         'Supplier Company', 'Supplier Contact', 'Supplier Phone/WA', 'Supplier Email',
         'Supplier Location', 'Certifications', 'Supplier Quoted Price', 'Margin %',
-        'Est. Total Profit', 'MOQ', 'MOQ Unit', 'Lead Time (Days)', 'Supplier Status', 'Sample AWB', 'Remarks',
+        'Est. Total Profit', 'MOQ', 'MOQ Unit', 'Lead Time (Days)', 'Supplier Status',
+        'Sample AWB', 'PO Number', 'Execution Stage', 'Payment Mode', 'LC / UTR Ref',
+        'QC Status', 'BL / LR Number', 'Shipping Bill #', 'Container / Vehicle #',
+        'ETD', 'ETA', 'Shipping Docs', 'Remarks',
       ];
 
       const rows = [headers.map(csvCell).join(',')];
@@ -687,7 +754,8 @@ export async function onRequest(context) {
               order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
               idx + 1, item.product_name, item.specifications, item.required_qty, item.unit,
               item.buyer_target_price, mode === 'awarded' ? 'PENDING AWARD' : 'NO SUPPLIER',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+              '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+              '', '', '', '', '', '', '', '', '', '', '', '',
             ].map(csvCell).join(',')
           );
         } else {
@@ -708,7 +776,10 @@ export async function onRequest(context) {
                 item.buyer_target_price, Number(q.is_selected) === 1 ? 'YES - AWARDED' : 'No',
                 q.supplier_name, q.supplier_contact, q.supplier_phone, q.supplier_email,
                 q.city_country, q.certifications, q.quoted_price, marginPct, totalProfit,
-                q.moq, q.moq_unit || item.unit, q.lead_time_days, q.status, q.sample_awb, q.remarks,
+                q.moq, q.moq_unit || item.unit, q.lead_time_days, q.status, q.sample_awb,
+                q.po_number, q.execution_stage, q.payment_mode || order.payment_terms, q.payment_ref,
+                q.qc_status, q.bl_number, q.shipping_bill_no, q.container_no,
+                q.etd, q.eta, q.shipping_docs, q.remarks,
               ].map(csvCell).join(',')
             );
           }
