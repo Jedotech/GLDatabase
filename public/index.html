@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLDatabase — Product, Buyer, Supplier, Buyer Enquiries &amp; Order Processing</title>
+  <title>GLDatabase — Products, Buyers, Suppliers, Buyer Enquiries &amp; Order Processing</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
     <div class="flex items-center gap-5 flex-wrap">
       <div>
         <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
-        <p class="text-xs text-slate-400">Product &rarr; Buyer &rarr; Supplier &rarr; Buyer Enquiries &rarr; Order Processing</p>
+        <p class="text-xs text-slate-400">Products &rarr; Buyers &rarr; Suppliers &rarr; Buyer Enquiries &rarr; Order Processing</p>
       </div>
 
       <!-- Navigation Tabs -->
@@ -22,17 +22,17 @@
         <button @click="activeTab = 'glProducts'"
                 :class="activeTab === 'glProducts' ? 'bg-teal-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Product (<span x-text="glProducts.length"></span>)
+          Products (<span x-text="glProducts.length"></span>)
         </button>
         <button @click="activeTab = 'buyers'"
                 :class="activeTab === 'buyers' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Buyer (<span x-text="buyers.length"></span>)
+          Buyers (<span x-text="buyers.length"></span>)
         </button>
         <button @click="activeTab = 'suppliers'"
                 :class="activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Supplier (<span x-text="activeSuppliersCount"></span>)
+          Suppliers (<span x-text="activeSuppliersCount"></span>)
         </button>
         <button @click="activeTab = 'orders'"
                 :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
@@ -73,7 +73,7 @@
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
           <div>
-            <h2 class="font-bold text-slate-800 text-base">Product (<span x-text="filteredGlProducts.length"></span>)</h2>
+            <h2 class="font-bold text-slate-800 text-base">Products (<span x-text="filteredGlProducts.length"></span>)</h2>
             <p class="text-xs text-slate-500">Each product is entered once here and selected when creating buyer enquiries or linking suppliers.</p>
           </div>
         </div>
@@ -547,6 +547,12 @@
           <h2 class="text-base font-bold text-slate-900">Order Processing — Awarded &amp; PO Issued Lines (<span x-text="awardedOrderRows.length"></span>)</h2>
           <p class="text-xs text-slate-500">Tracks all awarded buyer enquiry items and supplier PO statuses across enquiries.</p>
         </div>
+        <button @click="exportOrderProcessingCsv()"
+                :disabled="awardedOrderRows.length === 0"
+                :class="awardedOrderRows.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-500'"
+                class="bg-purple-600 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5">
+          &#11015; Export Order Processing (CSV)
+        </button>
       </div>
 
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -793,9 +799,9 @@
           <input x-model="forms.supplier.city_country" placeholder="Full plant / warehouse / office address" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
 
-        <!-- 9. Multi-Product Picker from Product Tab -->
+        <!-- 9. Multi-Product Picker from Products Tab -->
         <div class="md:col-span-2 border-t pt-3 space-y-2">
-          <label class="text-xs font-semibold text-slate-700 block">9. Products (Select from Product Tab)</label>
+          <label class="text-xs font-semibold text-slate-700 block">9. Products (Select from Products Tab)</label>
           <div class="flex gap-2">
             <select x-model="selectedProductToLink" class="flex-1 border rounded px-3 py-2 text-xs bg-white">
               <option value="">-- Select Product ID &amp; Product Name --</option>
@@ -914,11 +920,11 @@
         </div>
       </div>
 
-      <!-- Product Lines Selected from Product Master -->
+      <!-- Product Lines Selected from Products Master -->
       <div class="border-t pt-3 space-y-2.5">
         <div class="flex justify-between items-center flex-wrap gap-2">
           <div>
-            <span class="text-sm font-bold">Product Lines (Select from Product Master)</span>
+            <span class="text-sm font-bold">Product Lines (Select from Products Master)</span>
             <p class="text-[11px] text-slate-500">Pick a master product to auto-fill product name and origin/HSN details.</p>
           </div>
           <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded font-semibold">+ Add Product Line</button>
@@ -928,7 +934,7 @@
           <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center text-xs bg-slate-50 p-2.5 rounded border border-slate-200">
             <select x-model="prod.gl_product_id" @change="applyGlProductToRow(prod)"
                     class="md:col-span-3 border rounded px-2 py-1.5 bg-white font-medium">
-              <option value="">-- From Product --</option>
+              <option value="">-- From Products --</option>
               <template x-for="gp in glProducts" :key="gp.id">
                 <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
               </template>
@@ -955,7 +961,7 @@
       <h3 class="text-lg font-bold" x-text="forms.singleProduct.id ? 'Edit Product Line' : 'Add Product to Enquiry'"></h3>
       <div class="space-y-3 text-sm">
         <div>
-          <label class="text-xs font-semibold text-slate-600">Select from Product Master</label>
+          <label class="text-xs font-semibold text-slate-600">Select from Products Master</label>
           <select x-model="forms.singleProduct.gl_product_id" @change="applyGlProductToRow(forms.singleProduct)"
                   class="w-full border rounded px-3 py-2 mt-1 bg-white">
             <option value="">-- Optional: Pick Master Product --</option>
@@ -1262,6 +1268,86 @@
           this.activeTab = 'orders';
         },
 
+        exportOrderProcessingCsv() {
+          if (this.awardedOrderRows.length === 0) return;
+          const esc = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+          const headers = [
+            'Enquiry Ref',
+            'Buyer Company',
+            'Destination Country',
+            'Destination Port',
+            'Incoterms',
+            'Currency',
+            'Product Name',
+            'Specifications',
+            'Required Qty',
+            'Unit',
+            'Buyer Target Price',
+            'Awarded Supplier',
+            'Supplier Contact',
+            'Supplier Phone/WA',
+            'Quoted Price',
+            'Margin %',
+            'Est. Total Profit',
+            'MOQ',
+            'MOQ Unit',
+            'Lead Time (Days)',
+            'Stage / Status',
+            'Sample AWB',
+            'Remarks',
+          ];
+
+          const lines = [headers.map(esc).join(',')];
+          for (const { order, item, quote } of this.awardedOrderRows) {
+            const target = Number(item.buyer_target_price) || 0;
+            const quoted = Number(quote.quoted_price) || 0;
+            const qty = Number(item.required_qty) || 0;
+            const marginPct = target > 0 && quoted > 0 ? (((target - quoted) / target) * 100).toFixed(2) + '%' : '';
+            const totalProfit = target > 0 && quoted > 0 && qty > 0 ? ((target - quoted) * qty).toFixed(2) : '';
+
+            lines.push(
+              [
+                order.order_code,
+                order.buyer_name,
+                order.destination_country,
+                order.destination_port,
+                order.incoterms,
+                order.currency,
+                item.product_name,
+                item.specifications,
+                item.required_qty,
+                item.unit,
+                item.buyer_target_price,
+                quote.supplier_name,
+                quote.supplier_contact,
+                quote.supplier_phone,
+                quote.quoted_price,
+                marginPct,
+                totalProfit,
+                quote.moq,
+                quote.moq_unit || item.unit,
+                quote.lead_time_days,
+                quote.status,
+                quote.sample_awb,
+                quote.remarks,
+              ]
+                .map(esc)
+                .join(',')
+            );
+          }
+
+          const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const dateStr = new Date().toISOString().slice(0, 10);
+          a.href = url;
+          a.download = `Order_Processing_${dateStr}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        },
+
         async init() {
           await this.loadAll();
           if (this.orders.length > 0 && !this.selectedOrderId) {
@@ -1357,7 +1443,7 @@
         },
 
         async deleteGlProduct(id) {
-          if (!confirm('Delete this product from Product?')) return;
+          if (!confirm('Delete this product from Products?')) return;
           await fetch(`/api/gl-products/${id}`, { method: 'DELETE' });
           await this.loadAll();
         },
