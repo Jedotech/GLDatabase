@@ -662,4 +662,2429 @@
 
                     <div class="flex flex-wrap items-center gap-4 text-sm">
                       <div class="text-right">
-                        <div class="text-xs text-slate-
+                        <div class="text-xs text-slate-400">Buyer Target</div>
+                        <div class="font-semibold text-slate-800" x-text="`${activeOrder.currency} ${item.buyer_target_price} / ${item.unit}`"></div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-xs text-slate-400">Best Supplier</div>
+                        <div class="font-bold" :class="bestQuote(item) > 0 && bestQuote(item) <= item.buyer_target_price ? 'text-emerald-600' : 'text-slate-700'"
+                             x-text="bestQuote(item) > 0 ? `${activeOrder.currency} ${bestQuote(item)} / ${item.unit}` : 'Pending'"></div>
+                      </div>
+                      <span class="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full"
+                            x-text="`${item.quotes.length} Supplier${item.quotes.length === 1 ? '' : 's'}`"></span>
+                      <span class="text-slate-400 text-xs" x-text="expandedItems[item.id] ? '▲ Hide' : '▼ Suppliers'"></span>
+                    </div>
+                  </div>
+
+                  <div x-show="expandedItems[item.id]" class="border-t border-slate-200 p-4 bg-slate-50 space-y-3">
+                    <div class="flex justify-between items-center flex-wrap gap-2">
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Assigned Suppliers &amp; Sample Pipeline</span>
+                      <div class="flex items-center gap-2">
+                        <button @click="openAssignSupplier(item)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded">
+                          + Assign Supplier
+                        </button>
+                        <button @click="openEditProductModal(item)" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1.5 rounded">
+                          Edit Product
+                        </button>
+                        <button x-show="canPermanentDelete" @click="deleteProduct(item.id)" class="text-red-500 hover:text-red-700 text-xs px-2 py-1">Delete Product</button>
+                      </div>
+                    </div>
+
+                    <template x-if="item.quotes.length === 0">
+                      <p class="text-xs text-slate-500 italic py-2">No suppliers assigned to this product yet. Click "+ Assign Supplier" to start tracking.</p>
+                    </template>
+
+                    <template x-if="item.quotes.length > 0">
+                      <div class="overflow-x-auto bg-white rounded border border-slate-200">
+                        <table class="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                              <th class="p-2.5">Supplier &amp; Contact Info</th>
+                              <th class="p-2.5">Quote (<span x-text="`${activeOrder.currency} / ${item.unit}`"></span>)</th>
+                              <th class="p-2.5">Margin</th>
+                              <th class="p-2.5">MOQ &amp; Packaging</th>
+                              <th class="p-2.5">Lead Time</th>
+                              <th class="p-2.5">Supplier Status</th>
+                              <th class="p-2.5">Sample AWB / Notes</th>
+                              <th class="p-2.5 text-center">Award</th>
+                              <th class="p-2.5" x-show="canPermanentDelete"></th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-100">
+                            <template x-for="q in item.quotes" :key="q.id">
+                              <tr :class="q.is_selected ? 'bg-emerald-50/70' : ''">
+                                <td class="p-2.5 align-top min-w-[180px]">
+                                  <div class="font-bold text-slate-900 text-sm" x-text="q.supplier_name"></div>
+                                  <div class="text-slate-600" x-text="q.supplier_contact"></div>
+                                  <div class="mt-0.5 flex items-center gap-1.5">
+                                    <span class="text-slate-500" x-text="q.supplier_phone"></span>
+                                    <a x-show="q.supplier_phone" :href="waLink(q.supplier_phone)" target="_blank"
+                                       class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                                  </div>
+                                  <div class="text-[11px] text-slate-400 mt-0.5" x-text="q.city_country"></div>
+                                </td>
+                                <td class="p-2.5 align-top">
+                                  <div class="flex items-center gap-1">
+                                    <span class="text-[11px] font-bold text-slate-500" x-text="activeOrder.currency"></span>
+                                    <input type="number" step="0.01" x-model.number="q.quoted_price" @change="updateQuote(q)"
+                                           class="w-20 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
+                                  </div>
+                                  <div class="text-[10px] text-slate-400 mt-0.5" x-text="`per ${item.unit}`"></div>
+                                </td>
+                                <td class="p-2.5 align-top font-bold"
+                                    :class="calcMargin(item.buyer_target_price, q.quoted_price) >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                                  <span x-text="q.quoted_price > 0 && item.buyer_target_price > 0 ? `${calcMargin(item.buyer_target_price, q.quoted_price)}%` : '-'"></span>
+                                </td>
+                                <td class="p-2.5 align-top">
+                                  <div class="flex items-center gap-1">
+                                    <input type="number" x-model.number="q.moq" @change="updateQuote(q)" class="w-16 border border-slate-300 rounded px-1.5 py-1 text-xs font-semibold" />
+                                    <input type="text" x-model="q.moq_unit" @change="updateQuote(q)" placeholder="e.g. Bag (50kg)"
+                                           class="w-24 border border-slate-300 rounded px-1.5 py-1 text-xs bg-slate-50" />
+                                  </div>
+                                </td>
+                                <td class="p-2.5 align-top">
+                                  <div class="flex items-center gap-1">
+                                    <input type="number" x-model.number="q.lead_time_days" @change="updateQuote(q)" class="w-14 border border-slate-300 rounded px-1.5 py-1 text-xs" />
+                                    <span class="text-slate-400">days</span>
+                                  </div>
+                                </td>
+                                <td class="p-2.5 align-top">
+                                  <select x-model="q.status" @change="onSupplierStatusChange(q)"
+                                          class="border border-slate-300 rounded px-2 py-1 text-xs font-medium bg-white">
+                                    <option>RFQ Sent</option>
+                                    <option>Quote Received</option>
+                                    <option>Sample Requested</option>
+                                    <option>Sample Received</option>
+                                    <option>Sample Approved</option>
+                                    <option>Selected</option>
+                                    <option>Not Selected</option>
+                                  </select>
+                                </td>
+                                <td class="p-2.5 align-top space-y-1 min-w-[170px]">
+                                  <input type="text" placeholder="Sample AWB / Courier..." x-model="q.sample_awb" @change="updateQuote(q)"
+                                         class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
+                                  <input type="text" placeholder="Notes / Payment terms..." x-model="q.remarks" @change="updateQuote(q)"
+                                         class="w-full border border-slate-300 rounded px-1.5 py-1 text-xs" />
+                                </td>
+                                <td class="p-2.5 align-top text-center">
+                                  <input type="checkbox" :checked="q.is_selected == 1" @change="toggleWinner(q)"
+                                         class="w-4 h-4 accent-emerald-600 cursor-pointer" title="Select winning supplier" />
+                                </td>
+                                <td x-show="canPermanentDelete" class="p-2.5 align-top text-right">
+                                  <button @click="deleteQuote(q.id)" class="text-slate-400 hover:text-red-600 font-bold" title="Delete quote">&times;</button>
+                                </td>
+                              </tr>
+                            </template>
+                          </tbody>
+                        </table>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ==================== ORDER PROCESSING ==================== -->
+    <div x-show="activeTab === 'orderProcessing'" class="space-y-5" style="display:none;">
+      <!-- Search & Stage Filter Bar -->
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex-1 min-w-[260px] flex flex-wrap items-center gap-3">
+          <input type="text" x-model="orderProcessingSearch"
+                 placeholder="Search by Enquiry Ref, Buyer, Product, Supplier, PO #, BL/LR #, Shipping Bill #, or Payment Mode..."
+                 class="flex-1 min-w-[240px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500" />
+          <select x-model="orderProcessingStageFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
+            <option value="ALL">All Stages</option>
+            <option>PO Issued</option>
+            <option>Production / QC</option>
+            <option>Docs &amp; Customs</option>
+            <option>Dispatched / On Board</option>
+            <option>Delivered</option>
+          </select>
+        </div>
+        <button @click="exportOrderProcessingCsv()"
+                :disabled="filteredAwardedOrderRows.length === 0"
+                :class="filteredAwardedOrderRows.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-500'"
+                class="bg-purple-600 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5">
+          &#11015; Export Order Processing (CSV)
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Order Processing — Selected &amp; Confirmed Lines (<span x-text="filteredAwardedOrderRows.length"></span>)</h2>
+            <p class="text-xs text-slate-500">Manage commercial terms (FOB/FOR), payment modes (Irrevocable LC / Advance), QC, shipping docs (BL, Shipping Bill, COO/Phyto), and printable PI / PO previews.</p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3">Enquiry / PO #</th>
+                <th class="p-3">Buyer &amp; Destination</th>
+                <th class="p-3">Product &amp; Qty</th>
+                <th class="p-3">Selected Supplier &amp; Quote</th>
+                <th class="p-3">Incoterms &amp; Payment Mode</th>
+                <th class="p-3">QC &amp; Shipping Docs (BL / SB / Container)</th>
+                <th class="p-3">Execution Stage</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredAwardedOrderRows.length === 0">
+                <tr>
+                  <td colspan="8" class="p-8 text-center text-slate-400">
+                    No matching orders found. Select a supplier (<strong>Selected</strong> / <strong>Award</strong>) inside <strong>Buyer Enquiries</strong> to move it into Order Processing.
+                  </td>
+                </tr>
+              </template>
+              <template x-for="row in filteredAwardedOrderRows" :key="row.quote.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 align-top whitespace-nowrap">
+                    <div class="font-bold text-blue-800" x-text="row.order.order_code"></div>
+                    <div class="text-[11px] font-mono text-slate-600 mt-0.5" x-text="row.quote.po_number ? `PO: ${row.quote.po_number}` : 'PO: Pending'"></div>
+                  </td>
+                  <td class="p-3 align-top">
+                    <div class="font-semibold text-slate-900" x-text="row.order.buyer_name"></div>
+                    <div class="text-[11px] text-slate-500" x-text="`${row.order.destination_country || '-'}${row.order.destination_port ? ' (' + row.order.destination_port + ')' : ''}`"></div>
+                  </td>
+                  <td class="p-3 align-top">
+                    <div class="font-bold text-slate-800" x-text="row.item.product_name"></div>
+                    <div class="text-[11px] text-slate-500" x-text="`${row.item.required_qty} ${row.item.unit}`"></div>
+                  </td>
+                  <td class="p-3 align-top">
+                    <div class="font-semibold text-slate-800" x-text="row.quote.supplier_name"></div>
+                    <div class="text-emerald-700 font-bold mt-0.5" x-text="`${row.order.currency} ${row.quote.quoted_price} / ${row.item.unit}`"></div>
+                    <div class="text-[11px] text-slate-500" x-text="row.quote.lead_time_days ? `Lead: ${row.quote.lead_time_days} days` : ''"></div>
+                  </td>
+                  <td class="p-3 align-top max-w-[200px]">
+                    <span class="inline-block bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded text-[11px]" x-text="row.order.incoterms || 'FOB'"></span>
+                    <div class="font-semibold text-slate-800 mt-1" x-text="row.quote.payment_mode || row.order.payment_terms || 'TBA'"></div>
+                    <div x-show="row.quote.payment_ref" class="text-[11px] text-indigo-700 font-mono mt-0.5" x-text="`Ref: ${row.quote.payment_ref}`"></div>
+                  </td>
+                  <td class="p-3 align-top space-y-1 max-w-[230px]">
+                    <div>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                            :class="row.quote.qc_status === 'QC Passed' ? 'bg-emerald-100 text-emerald-800' : (row.quote.qc_status === 'QC Hold' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800')"
+                            x-text="row.quote.qc_status || 'Pending QC'"></span>
+                    </div>
+                    <div x-show="row.quote.bl_number" class="text-[11px] text-slate-700"><strong>BL/LR:</strong> <span class="font-mono" x-text="row.quote.bl_number"></span></div>
+                    <div x-show="row.quote.shipping_bill_no" class="text-[11px] text-slate-700"><strong>SB #:</strong> <span class="font-mono" x-text="row.quote.shipping_bill_no"></span></div>
+                    <div x-show="row.quote.container_no" class="text-[11px] text-slate-700"><strong>Cont/Veh:</strong> <span class="font-mono" x-text="row.quote.container_no"></span></div>
+                    <div x-show="row.quote.etd || row.quote.eta" class="text-[11px] text-slate-500">
+                      <span x-show="row.quote.etd" x-text="`ETD: ${row.quote.etd}`"></span>
+                      <span x-show="row.quote.etd && row.quote.eta"> | </span>
+                      <span x-show="row.quote.eta" x-text="`ETA: ${row.quote.eta}`"></span>
+                    </div>
+                    <div x-show="row.quote.shipping_docs" class="text-[11px] text-blue-700 truncate" :title="row.quote.shipping_docs" x-text="`Docs: ${row.quote.shipping_docs}`"></div>
+                  </td>
+                  <td class="p-3 align-top">
+                    <select x-model="row.quote.execution_stage" @change="updateQuote(row.quote)"
+                            class="border border-slate-300 rounded px-2 py-1 text-xs font-semibold bg-white">
+                      <option>PO Issued</option>
+                      <option>Production / QC</option>
+                      <option>Docs &amp; Customs</option>
+                      <option>Dispatched / On Board</option>
+                      <option>Delivered</option>
+                    </select>
+                  </td>
+                  <td class="p-3 align-top text-right whitespace-nowrap space-y-1">
+                    <div class="flex justify-end gap-1">
+                      <button @click="openDocPreviewModal(row, 'PI')"
+                              class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-1 rounded font-semibold"
+                              title="Preview &amp; Print Proforma Invoice">
+                        PI Preview
+                      </button>
+                      <button @click="openDocPreviewModal(row, 'PO')"
+                              class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-1 rounded font-semibold"
+                              title="Preview &amp; Print Supplier Purchase Order">
+                        PO Preview
+                      </button>
+                    </div>
+                    <div>
+                      <button @click="openExecutionModal(row)" class="bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-1 rounded font-semibold">
+                        Edit Docs &amp; Terms
+                      </button>
+                    </div>
+                    <div>
+                      <button @click="openOrderFromProcessing(row.order.id, row.item.id)" class="text-blue-600 hover:underline font-semibold">
+                        Open Enquiry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- MODAL 0: ADD / EDIT PRODUCT MASTER -->
+  <div x-show="modals.glProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.glProduct.id ? 'Edit Product' : 'Add Product'"></h3>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product ID *</label>
+          <input x-model="forms.glProduct.product_id" placeholder="e.g. GL-TEJ-SL" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product Name *</label>
+          <input x-model="forms.glProduct.product_name" placeholder="e.g. Red Chilli – Teja Stemless" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Category</label>
+          <input x-model="forms.glProduct.category" placeholder="e.g. Whole Spices" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Origin</label>
+          <input x-model="forms.glProduct.origin" placeholder="e.g. Tamil Nadu" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product Spec &amp; COA (PDF Upload)</label>
+          <input type="file" accept="application/pdf,.pdf" @change="handleSpecCoaPdfUpload($event)" class="w-full border rounded px-3 py-2 mt-1 text-xs bg-slate-50" />
+          <template x-if="forms.glProduct.spec_coa_pdf_name">
+            <div class="mt-1.5 flex items-center gap-3 text-xs">
+              <a :href="forms.glProduct.spec_coa_pdf_data" :download="forms.glProduct.spec_coa_pdf_name"
+                 class="text-blue-600 hover:underline font-semibold"
+                 x-text="forms.glProduct.spec_coa_pdf_name"></a>
+              <button type="button" @click="clearSpecCoaPdf()" class="text-red-600 hover:underline font-semibold">Remove PDF</button>
+            </div>
+          </template>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">HSN Code</label>
+          <input x-model="forms.glProduct.hsn_code" placeholder="Need to update" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Internal Notes</label>
+          <textarea x-model="forms.glProduct.internal_notes" rows="2" placeholder="Optional internal comments" class="w-full border rounded px-3 py-2 mt-1"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.glProduct = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveGlProduct()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: ADD / EDIT BUYER -->
+  <div x-show="modals.buyer" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.buyer.id ? 'Edit Buyer' : 'Add New Buyer'"></h3>
+      <div class="space-y-3 text-sm">
+        <input x-model="forms.buyer.company_name" placeholder="Buyer Company Name *" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.contact_person" placeholder="Contact Person" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.phone_whatsapp" placeholder="Phone / WhatsApp (with country code)" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.email" placeholder="Email Address" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.destination_port" placeholder="Destination Port / City" class="w-full border rounded px-3 py-2" />
+        <input x-model="forms.buyer.notes" placeholder="Payment Terms / Wanted Products / Notes" class="w-full border rounded px-3 py-2" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.buyer = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveBuyer()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Buyer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2A: VIEW SUPPLIER PROFILE & QUALIFICATION -->
+  <div x-show="modals.viewSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <div class="flex justify-between items-start border-b pb-3">
+        <div>
+          <span class="font-mono text-xs font-bold text-emerald-700" x-text="viewingSupplier?.supplier_code"></span>
+          <h3 class="text-lg font-bold text-slate-900" x-text="viewingSupplier?.company_name"></h3>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold"
+              :class="supplierStatusBadge(viewingSupplier?.supplier_status)"
+              x-text="viewingSupplier?.supplier_status"></span>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <span class="text-slate-400 block">Contact Name</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.contact_person || '-'"></strong>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Role / Designation</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.role_designation || '-'"></strong>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Email</span>
+          <a x-show="viewingSupplier?.email" :href="`mailto:${viewingSupplier?.email}`" class="text-blue-600 hover:underline font-semibold" x-text="viewingSupplier?.email"></a>
+          <span x-show="!viewingSupplier?.email">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block">WhatsApp / Contact</span>
+          <a x-show="viewingSupplier?.phone_whatsapp" :href="waLink(viewingSupplier?.phone_whatsapp)" target="_blank" class="text-emerald-700 hover:underline font-semibold" x-text="viewingSupplier?.phone_whatsapp"></a>
+          <span x-show="!viewingSupplier?.phone_whatsapp">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Facility Type &amp; Capacity</span>
+          <strong class="text-slate-800" x-text="`${viewingSupplier?.facility_type || '-'}${viewingSupplier?.monthly_capacity ? ' (' + viewingSupplier.monthly_capacity + ')' : ''}`"></strong>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Facility Address</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.city_country || '-'"></strong>
+        </div>
+
+        <!-- Supplier Qualification Checklist Summary -->
+        <div class="col-span-2 bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-700">Supplier Qualification &amp; Verification Checklist</span>
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800"
+                  x-text="`${qualificationScore(viewingSupplier)} / 5 Completed`"></span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+            <div x-text="`${viewingSupplier?.qual_kyc_gst ? '✅' : '⬜'} KYC / GST / IEC Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_facility_verified ? '✅' : '⬜'} Facility Audited / Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_capacity_verified ? '✅' : '⬜'} Production Capacity Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_certs_verified ? '✅' : '⬜'} Certifications Verified`"></div>
+            <div x-text="`${viewingSupplier?.qual_coa_verified ? '✅' : '⬜'} Product COA / Lab Specs`"></div>
+          </div>
+          <div class="pt-1 border-t border-slate-200 space-y-1">
+            <div><strong>Certifications:</strong> <span x-text="viewingSupplier?.certifications || 'None listed'"></span></div>
+            <div x-show="viewingSupplier?.coa_doc_url">
+              <strong>Product COA / Spec Link:</strong>
+              <a :href="viewingSupplier?.coa_doc_url" target="_blank" class="text-blue-600 hover:underline break-all" x-text="viewingSupplier?.coa_doc_url"></a>
+            </div>
+            <div x-show="viewingSupplier?.media_folder_url">
+              <strong>Facility Photos &amp; Videos Folder:</strong>
+              <a :href="viewingSupplier?.media_folder_url" target="_blank" class="text-purple-700 hover:underline break-all" x-text="viewingSupplier?.media_folder_url"></a>
+            </div>
+            <div x-show="viewingSupplier?.facility_photo_data" class="pt-1">
+              <img :src="viewingSupplier?.facility_photo_data" alt="Facility Photo" class="max-h-40 rounded border border-slate-300" />
+            </div>
+          </div>
+        </div>
+
+        <div class="col-span-2">
+          <span class="text-slate-400 block mb-1">Linked Products (<span x-text="viewingSupplier?.linked_products?.length || 0"></span>)</span>
+          <div class="flex flex-wrap gap-1.5">
+            <template x-if="!viewingSupplier?.linked_products || viewingSupplier.linked_products.length === 0">
+              <span class="text-slate-400">No products linked.</span>
+            </template>
+            <template x-for="lp in (viewingSupplier?.linked_products || [])" :key="lp.product_id + '-' + lp.product_name">
+              <span class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded font-semibold"
+                    x-text="`${lp.product_id ? lp.product_id + ' — ' : ''}${lp.product_name}`"></span>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button @click="modals.viewSupplier = false; openSupplierModal(viewingSupplier)" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-semibold">Edit Supplier</button>
+        <button @click="modals.viewSupplier = false" class="px-4 py-2 text-xs text-slate-600 font-semibold">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2B: ADD / EDIT SUPPLIER & QUALIFICATION CHECKLIST -->
+  <div x-show="modals.supplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.supplier.id ? 'Edit Supplier &amp; Qualification' : 'Add New Supplier'"></h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">1. Supplier ID (Auto-Generated)</label>
+          <input x-model="forms.supplier.supplier_code" readonly class="w-full border rounded px-3 py-2 mt-1 bg-slate-100 font-mono font-bold text-slate-700" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">2. Supplier Name *</label>
+          <input x-model="forms.supplier.company_name" placeholder="Supplier Company Name *" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">3. Contact Name</label>
+          <input x-model="forms.supplier.contact_person" placeholder="Primary contact person" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">4. Role / Designation</label>
+          <input x-model="forms.supplier.role_designation" placeholder="e.g. Export Manager, Proprietor" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">5. Email</label>
+          <input type="email" x-model="forms.supplier.email" placeholder="sales@supplier.com" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">6. WhatsApp / Contact Number (with country code)</label>
+          <input x-model="forms.supplier.phone_whatsapp" placeholder="e.g. 919840012345" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">7. Facility Type</label>
+          <select x-model="forms.supplier.facility_type" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Manufacturing</option>
+            <option>Processing</option>
+            <option>Warehouse</option>
+            <option>Registered Office</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Supplier Status</label>
+          <select x-model="forms.supplier.supplier_status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Under Verification</option>
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">8. Facility Address</label>
+          <input x-model="forms.supplier.city_country" placeholder="Full plant / warehouse / office address" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <!-- 9. Supplier Qualification Checklist & Media/Docs -->
+        <div class="md:col-span-2 border-t pt-3 space-y-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-700">9. Supplier Qualification Checklist, Capacity &amp; Media</span>
+            <span class="text-xs font-bold text-emerald-700" x-text="`${qualificationScore(forms.supplier)} / 5 Verified`"></span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_kyc_gst" class="accent-emerald-600" />
+              <span>KYC / GST / IEC Checked</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_facility_verified" class="accent-emerald-600" />
+              <span>Facility Verified</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_capacity_verified" class="accent-emerald-600" />
+              <span>Capacity Verified</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_certs_verified" class="accent-emerald-600" />
+              <span>Certifications Verified</span>
+            </label>
+            <label class="flex items-center gap-2 bg-white p-2 rounded border border-slate-200 cursor-pointer">
+              <input type="checkbox" x-model="forms.supplier.qual_coa_verified" class="accent-emerald-600" />
+              <span>Product COA Reviewed</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="font-semibold text-slate-600">Certifications (FSSAI, APEDA, ISO, HACCP, Organic)</label>
+              <input x-model="forms.supplier.certifications" placeholder="e.g. FSSAI, APEDA, ISO 22000, Spices Board" class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-600">Monthly Production / Processing Capacity</label>
+              <input x-model="forms.supplier.monthly_capacity" placeholder="e.g. 250 MT / Month" class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-600">Product COA &amp; Spec Documents (Drive / PDF URL)</label>
+              <input x-model="forms.supplier.coa_doc_url" placeholder="https://drive.google.com/..." class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-600">Photos &amp; Videos Folder Link (Google Drive / YouTube)</label>
+              <input x-model="forms.supplier.media_folder_url" placeholder="https://drive.google.com/... (Plant photos &amp; walk-through videos)" class="w-full border rounded px-3 py-2 mt-1 bg-white" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="font-semibold text-slate-600">Quick Facility Photo Snapshot (Auto-compressed thumbnail)</label>
+              <input type="file" accept="image/*" @change="handleFacilityPhotoUpload($event)" class="w-full border rounded px-3 py-1.5 mt-1 bg-white text-xs" />
+              <template x-if="forms.supplier.facility_photo_data">
+                <div class="mt-2 flex items-center gap-3">
+                  <img :src="forms.supplier.facility_photo_data" class="h-16 rounded border border-slate-300" />
+                  <button type="button" @click="forms.supplier.facility_photo_data = ''" class="text-red-600 hover:underline font-semibold">Remove Photo</button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10. Multi-Product Picker from Products Tab -->
+        <div class="md:col-span-2 border-t pt-3 space-y-2">
+          <label class="text-xs font-semibold text-slate-700 block">10. Products (Select from Products Tab)</label>
+          <div class="flex gap-2">
+            <select x-model="selectedProductToLink" class="flex-1 border rounded px-3 py-2 text-xs bg-white">
+              <option value="">-- Select Product ID &amp; Product Name --</option>
+              <template x-for="gp in glProducts" :key="gp.id">
+                <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
+              </template>
+            </select>
+            <button type="button" @click="addLinkedProductToSupplier()"
+                    class="bg-teal-600 hover:bg-teal-500 text-white px-3.5 py-2 rounded text-xs font-semibold whitespace-nowrap">
+              + Add Product
+            </button>
+          </div>
+          <p x-show="supplierProductError" class="text-xs text-red-600 font-semibold" x-text="supplierProductError"></p>
+
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <template x-for="(lp, idx) in forms.supplier.linked_products" :key="lp.product_id + '-' + lp.product_name">
+              <span class="inline-flex items-center gap-1.5 bg-teal-50 text-teal-900 border border-teal-200 px-2.5 py-1 rounded-full text-xs font-medium">
+                <span x-text="`${lp.product_id ? lp.product_id + ' — ' : ''}${lp.product_name}`"></span>
+                <button type="button" @click="removeLinkedProductFromSupplier(idx)" class="text-red-600 font-bold hover:text-red-800">&times;</button>
+              </span>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button @click="modals.supplier = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveSupplier()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Supplier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: NEW BUYER ENQUIRY -->
+  <div x-show="modals.order" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-4xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold">Create New Buyer Enquiry</h3>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">RFQ / Enquiry Reference *</label>
+          <input x-model="forms.order.order_code" class="w-full border rounded px-3 py-2 mt-1 font-medium" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Buyer *</label>
+          <select x-model="forms.order.buyer_id" @change="onSelectEnquiryBuyer()" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option value="">Select Buyer...</option>
+            <template x-for="b in buyers" :key="b.id">
+              <option :value="b.id" x-text="b.company_name"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Buyer Contact</label>
+          <input x-model="forms.order.buyer_contact" placeholder="Person handling enquiry" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Enquiry Received Date</label>
+          <input type="date" x-model="forms.order.enquiry_received_date" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Enquiry Source</label>
+          <select x-model="forms.order.enquiry_source" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Email</option>
+            <option>WhatsApp</option>
+            <option>Website</option>
+            <option>Referral</option>
+            <option>Trade Portal</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Destination Country *</label>
+          <input x-model="forms.order.destination_country" placeholder="e.g. United Arab Emirates" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Destination Port / City</label>
+          <input x-model="forms.order.destination_port" placeholder="e.g. Jebel Ali" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Target Delivery Date</label>
+          <input type="date" x-model="forms.order.target_delivery_date" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Currency</label>
+            <select x-model="forms.order.currency" class="w-full border rounded px-2 py-2 mt-1 bg-white">
+              <option>USD</option><option>INR</option><option>EUR</option><option>AED</option><option>GBP</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Incoterms</label>
+            <select x-model="forms.order.incoterms" class="w-full border rounded px-2 py-2 mt-1 bg-white">
+              <option>FOB</option><option>FOR</option><option>CIF</option><option>EXW</option><option>CFR</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Payment Mode</label>
+          <input type="text" list="payment-mode-options" x-model="forms.order.payment_terms"
+                 placeholder="e.g. Irrevocable LC or 85% Advance" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Owner / GL Team</label>
+          <select x-model="forms.order.gl_team" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option value="">Select Owner...</option>
+            <template x-for="u in users" :key="u.id">
+              <option :value="u.name" x-text="u.name"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Buyer Documents (Links / File Refs)</label>
+          <input x-model="forms.order.buyer_documents" placeholder="Drive/file links or spec sheet names" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div class="md:col-span-3">
+          <label class="text-xs font-semibold text-slate-600">General Notes / Commercial Requirements</label>
+          <textarea x-model="forms.order.general_notes" rows="2" placeholder="Overall commercial context, packaging, or buyer requirements..."
+                    class="w-full border rounded px-3 py-2 mt-1"></textarea>
+        </div>
+      </div>
+
+      <!-- Product Lines Selected from Products Master -->
+      <div class="border-t pt-3 space-y-2.5">
+        <div class="flex justify-between items-center flex-wrap gap-2">
+          <div>
+            <span class="text-sm font-bold">Product Lines (Select from Products Master)</span>
+            <p class="text-[11px] text-slate-500">Pick a master product to auto-fill product name and origin/HSN details.</p>
+          </div>
+          <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded font-semibold">+ Add Product Line</button>
+        </div>
+
+        <template x-for="(prod, i) in forms.order.products" :key="i">
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center text-xs bg-slate-50 p-2.5 rounded border border-slate-200">
+            <select x-model="prod.gl_product_id" @change="applyGlProductToRow(prod)"
+                    class="md:col-span-3 border rounded px-2 py-1.5 bg-white font-medium">
+              <option value="">-- From Products --</option>
+              <template x-for="gp in glProducts" :key="gp.id">
+                <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
+              </template>
+            </select>
+            <input x-model="prod.product_name" placeholder="Product Name *" class="md:col-span-3 border rounded px-2 py-1.5 bg-white" />
+            <input x-model="prod.specifications" placeholder="Origin / HSN / Specs" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
+            <input type="number" step="0.01" x-model="prod.required_qty" placeholder="Qty" class="md:col-span-1 border rounded px-2 py-1.5 bg-white" />
+            <input x-model="prod.unit" placeholder="Unit" class="md:col-span-1 border rounded px-2 py-1.5 bg-white" />
+            <input type="number" step="0.01" x-model="prod.buyer_target_price" :placeholder="`Target (${forms.order.currency})`" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
+          </div>
+        </template>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.order = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveOrder()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Buyer Enquiry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ADD / EDIT PRODUCT ON ENQUIRY -->
+  <div x-show="modals.addProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.singleProduct.id ? 'Edit Product Line' : 'Add Product to Enquiry'"></h3>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Select from Products Master</label>
+          <select x-model="forms.singleProduct.gl_product_id" @change="applyGlProductToRow(forms.singleProduct)"
+                  class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option value="">-- Optional: Pick Master Product --</option>
+            <template x-for="gp in glProducts" :key="gp.id">
+              <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
+            </template>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product Name *</label>
+          <input x-model="forms.singleProduct.product_name" placeholder="Product Name *" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Specifications / Grade</label>
+          <input x-model="forms.singleProduct.specifications" placeholder="Specifications / Grade" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Required Qty</label>
+            <input type="number" step="0.01" x-model="forms.singleProduct.required_qty" placeholder="Required Qty" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Unit</label>
+            <input x-model="forms.singleProduct.unit" placeholder="Unit (MT, KG, Bag)" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Buyer Target Price (<span x-text="`${activeOrder?.currency || 'USD'} per ${forms.singleProduct.unit || 'Unit'}`"></span>)</label>
+          <input type="number" step="0.01" x-model="forms.singleProduct.buyer_target_price" placeholder="0.00" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.addProduct = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveSingleProduct()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold"
+                x-text="forms.singleProduct.id ? 'Save Changes' : 'Add Product'"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: ASSIGN SUPPLIER TO PRODUCT -->
+  <div x-show="modals.assignSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
+      <div>
+        <h3 class="text-lg font-bold">Assign Supplier</h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Product: <strong class="text-slate-800" x-text="assignTargetItem?.product_name"></strong>
+          &bull; Currency: <span class="font-bold text-blue-700" x-text="activeOrder?.currency || 'USD'"></span>
+        </p>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Choose from Supplier Directory *</label>
+          <select x-model="forms.quote.supplier_id" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option value="">-- Select Supplier --</option>
+            <template x-for="s in suppliers.filter(item => !item.is_archived)" :key="s.id">
+              <option :value="s.id" x-text="`${s.supplier_code} — ${s.company_name} (${s.contact_person || s.city_country})`"></option>
+            </template>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">
+            Quoted Price in <span class="text-blue-700 font-bold" x-text="activeOrder?.currency || 'USD'"></span>
+            (per <span x-text="assignTargetItem?.unit || 'KG'"></span>)
+          </label>
+          <div class="relative mt-1">
+            <span class="absolute left-3 top-2 text-xs font-bold text-slate-500" x-text="activeOrder?.currency || 'USD'"></span>
+            <input type="number" step="0.01" x-model="forms.quote.quoted_price" placeholder="0.00 (leave 0 if pending)"
+                   class="w-full border rounded pl-12 pr-3 py-2 font-semibold" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Minimum Order Qty (MOQ)</label>
+            <input type="number" x-model="forms.quote.moq" placeholder="e.g. 1 or 500" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">MOQ Unit / Bag Size</label>
+            <input type="text" list="moq-unit-options" x-model="forms.quote.moq_unit" placeholder="e.g. Bag (50 kg)"
+                   class="w-full border rounded px-3 py-2 mt-1" />
+            <datalist id="moq-unit-options">
+              <option value="KG"></option>
+              <option value="Bag (25 kg)"></option>
+              <option value="Bag (50 kg)"></option>
+              <option value="MT"></option>
+              <option value="PCS"></option>
+              <option value="Box"></option>
+              <option value="Carton"></option>
+            </datalist>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Lead Time (Days)</label>
+            <input type="number" x-model="forms.quote.lead_time_days" placeholder="e.g. 7" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600">Supplier Status</label>
+            <select x-model="forms.quote.status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+              <option>RFQ Sent</option>
+              <option>Quote Received</option>
+              <option>Sample Requested</option>
+              <option>Sample Received</option>
+              <option>Sample Approved</option>
+              <option>Selected</option>
+              <option>Not Selected</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Initial Notes / Packaging Details</label>
+          <input x-model="forms.quote.remarks" placeholder="e.g. 1 bag = 50 kg PP woven bag, Ex-Chennai" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="modals.assignSupplier = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveAssignedSupplier()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Assign Supplier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: EDIT ORDER EXECUTION, PAYMENT MODE & SHIPPING DOCS -->
+  <div x-show="modals.execution" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <div class="border-b pb-3">
+        <h3 class="text-lg font-bold text-slate-900">Order Execution, Payment Terms &amp; Shipping Documents</h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          <strong class="text-blue-800" x-text="forms.execution.order_code"></strong> &bull;
+          <strong class="text-slate-800" x-text="forms.execution.buyer_name"></strong> &bull;
+          <span x-text="forms.execution.product_name"></span>
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Supplier PO Number</label>
+          <input x-model="forms.execution.po_number" placeholder="e.g. GL-PO-2026-014" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Execution Stage</label>
+          <select x-model="forms.execution.execution_stage" class="w-full border rounded px-3 py-2 mt-1 bg-white font-semibold">
+            <option>PO Issued</option>
+            <option>Production / QC</option>
+            <option>Docs &amp; Customs</option>
+            <option>Dispatched / On Board</option>
+            <option>Delivered</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Payment Mode (<span x-text="forms.execution.incoterms"></span>)</label>
+          <input type="text" list="payment-mode-options" x-model="forms.execution.payment_mode"
+                 placeholder="e.g. Irrevocable LC or 85% Advance Payment" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">LC Number / Advance UTR Reference</label>
+          <input x-model="forms.execution.payment_ref" placeholder="e.g. LC#982145 / UTR123456" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Pre-Shipment Inspection / QC Status</label>
+          <select x-model="forms.execution.qc_status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Pending QC</option>
+            <option>QC Passed</option>
+            <option>QC Hold</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Container / Vehicle / Wagon Number</label>
+          <input x-model="forms.execution.container_no" placeholder="e.g. MSKU1234567 or TN01AB1234" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Bill of Lading (BL) / Lorry Receipt (LR) #</label>
+          <input x-model="forms.execution.bl_number" placeholder="e.g. BL#MAEU908172" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Shipping Bill / E-Way Bill #</label>
+          <input x-model="forms.execution.shipping_bill_no" placeholder="e.g. SB#4512890" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-600">ETD (Estimated Departure)</label>
+          <input type="date" x-model="forms.execution.etd" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">ETA (Estimated Arrival)</label>
+          <input type="date" x-model="forms.execution.eta" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">Shipping Documents &amp; Compliance Links / Checklist</label>
+          <input x-model="forms.execution.shipping_docs"
+                 placeholder="e.g. Commercial Invoice, Packing List, BL Draft, COO, Phyto, Lab COA (paste Drive link or doc list)"
+                 class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">Execution Remarks</label>
+          <textarea x-model="forms.execution.remarks" rows="2" placeholder="CHA details, port cutoff, LC discrepancy notes..."
+                    class="w-full border rounded px-3 py-2 mt-1"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button @click="modals.execution = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
+        <button @click="saveExecutionDetails()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm font-semibold">Save Execution &amp; Docs</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: PRINTABLE PROFORMA INVOICE (PI) & SUPPLIER PURCHASE ORDER (PO) PREVIEW -->
+  <div x-show="modals.docPreview" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl">
+      <div class="no-print sticky top-0 z-10 bg-slate-900 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Document Preview:</span>
+          <div class="flex bg-slate-800 p-0.5 rounded-md text-xs font-semibold">
+            <button @click="docPreviewType = 'PI'"
+                    :class="docPreviewType === 'PI' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:text-white'"
+                    class="px-3 py-1 rounded">
+              Proforma Invoice (Buyer)
+            </button>
+            <button @click="docPreviewType = 'PO'"
+                    :class="docPreviewType === 'PO' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'"
+                    class="px-3 py-1 rounded">
+              Purchase Order (Supplier)
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="window.print()"
+                  class="bg-white text-slate-900 hover:bg-slate-100 px-4 py-1.5 rounded text-xs font-bold shadow-sm flex items-center gap-1.5">
+            &#128424; Print / Save as PDF
+          </button>
+          <button @click="modals.docPreview = false"
+                  class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs font-semibold">
+            Close
+          </button>
+        </div>
+      </div>
+
+      <template x-if="docPreviewRow">
+        <div id="printable-doc-area" class="p-8 space-y-6 text-slate-900 text-xs">
+          <div class="flex justify-between items-start border-b-2 border-slate-900 pb-4">
+            <div class="flex items-center gap-3">
+              <template x-if="systemSettings.companyLogoUrl">
+                <img :src="systemSettings.companyLogoUrl" alt="GL Logo"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                     class="w-11 h-11 object-contain rounded-lg shrink-0" />
+              </template>
+              <svg :style="systemSettings.companyLogoUrl ? 'display:none;' : ''" class="w-11 h-11 shrink-0" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="14" fill="#0f172a"/>
+                <rect x="3" y="3" width="58" height="58" rx="11" fill="none" stroke="#14b8a6" stroke-width="3.5"/>
+                <text x="32" y="42" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="28" fill="#ffffff" text-anchor="middle">GL</text>
+                <circle cx="50" cy="16" r="5" fill="#10b981"/>
+              </svg>
+              <div>
+                <h2 class="text-2xl font-extrabold tracking-tight text-slate-900" x-text="systemSettings.companyName"></h2>
+                <p class="text-xs text-slate-600 mt-0.5">Merchant Export &amp; Domestic Commodity Sourcing</p>
+                <p class="text-xs text-slate-500" x-text="systemSettings.companyAddress"></p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="inline-block px-3 py-1 rounded text-xs font-extrabold uppercase tracking-wider"
+                    :class="docPreviewType === 'PI' ? 'bg-indigo-100 text-indigo-900' : 'bg-emerald-100 text-emerald-900'"
+                    x-text="docPreviewType === 'PI' ? 'PROFORMA INVOICE' : 'PURCHASE ORDER'"></span>
+              <div class="mt-2 space-y-0.5 text-xs">
+                <div>
+                  <strong x-text="docPreviewType === 'PI' ? 'PI Ref #:' : 'PO Ref #:'"></strong>
+                  <span class="font-mono font-bold"
+                        x-text="docPreviewType === 'PI'
+                          ? ('PI-' + docPreviewRow.order.order_code)
+                          : (docPreviewRow.quote.po_number || ('GL-PO-' + docPreviewRow.quote.id))"></span>
+                </div>
+                <div>
+                  <strong>Enquiry Ref:</strong>
+                  <span class="font-mono" x-text="docPreviewRow.order.order_code"></span>
+                </div>
+                <div>
+                  <strong>Date:</strong>
+                  <span x-text="new Date().toISOString().slice(0, 10)"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <div class="border border-slate-300 rounded p-3.5 space-y-1">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+                   x-text="docPreviewType === 'PI' ? 'Consignee / Buyer Details' : 'Supplier / Vendor Details'"></div>
+              <template x-if="docPreviewType === 'PI'">
+                <div class="space-y-0.5">
+                  <div class="text-sm font-bold text-slate-900" x-text="docPreviewRow.order.buyer_name"></div>
+                  <div x-show="docPreviewRow.order.buyer_contact"><strong>Attn:</strong> <span x-text="docPreviewRow.order.buyer_contact"></span></div>
+                  <div x-show="docPreviewRow.order.buyer_email"><strong>Email:</strong> <span x-text="docPreviewRow.order.buyer_email"></span></div>
+                  <div x-show="docPreviewRow.order.buyer_phone"><strong>Phone:</strong> <span x-text="docPreviewRow.order.buyer_phone"></span></div>
+                  <div><strong>Destination:</strong> <span x-text="`${docPreviewRow.order.destination_port || ''}${docPreviewRow.order.destination_port && docPreviewRow.order.destination_country ? ', ' : ''}${docPreviewRow.order.destination_country || '-'}`"></span></div>
+                </div>
+              </template>
+              <template x-if="docPreviewType === 'PO'">
+                <div class="space-y-0.5">
+                  <div class="text-sm font-bold text-slate-900" x-text="docPreviewRow.quote.supplier_name"></div>
+                  <div x-show="docPreviewRow.quote.supplier_contact"><strong>Attn:</strong> <span x-text="docPreviewRow.quote.supplier_contact"></span></div>
+                  <div x-show="docPreviewRow.quote.supplier_email"><strong>Email:</strong> <span x-text="docPreviewRow.quote.supplier_email"></span></div>
+                  <div x-show="docPreviewRow.quote.supplier_phone"><strong>Phone:</strong> <span x-text="docPreviewRow.quote.supplier_phone"></span></div>
+                  <div x-show="docPreviewRow.quote.city_country"><strong>Location:</strong> <span x-text="docPreviewRow.quote.city_country"></span></div>
+                </div>
+              </template>
+            </div>
+
+            <div class="border border-slate-300 rounded p-3.5 space-y-1">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Commercial &amp; Shipment Terms</div>
+              <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+                <div><strong>Incoterms:</strong> <span x-text="docPreviewRow.order.incoterms || 'FOB'"></span></div>
+                <div><strong>Currency:</strong> <span x-text="docPreviewRow.order.currency || 'USD'"></span></div>
+                <div class="col-span-2">
+                  <strong>Payment Mode:</strong>
+                  <span x-text="docPreviewRow.quote.payment_mode || docPreviewRow.order.payment_terms || 'TBA'"></span>
+                </div>
+                <div class="col-span-2" x-show="docPreviewRow.quote.payment_ref">
+                  <strong>LC / Payment Ref:</strong>
+                  <span class="font-mono" x-text="docPreviewRow.quote.payment_ref"></span>
+                </div>
+                <div>
+                  <strong>Lead Time:</strong>
+                  <span x-text="docPreviewRow.quote.lead_time_days ? `${docPreviewRow.quote.lead_time_days} Days` : 'As Agreed'"></span>
+                </div>
+                <div>
+                  <strong>Target Delivery:</strong>
+                  <span x-text="docPreviewRow.order.target_delivery_date || docPreviewRow.quote.etd || 'TBA'"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border border-slate-300 rounded overflow-hidden">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-300 text-slate-700">
+                  <th class="p-3 w-10">#</th>
+                  <th class="p-3">Product Description &amp; Specifications</th>
+                  <th class="p-3 text-right">Quantity</th>
+                  <th class="p-3 text-right">Unit Price (<span x-text="docPreviewRow.order.currency"></span>)</th>
+                  <th class="p-3 text-right">Total Amount (<span x-text="docPreviewRow.order.currency"></span>)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-slate-200">
+                  <td class="p-3 align-top font-semibold">1</td>
+                  <td class="p-3 align-top">
+                    <div class="font-bold text-slate-900 text-sm" x-text="docPreviewRow.item.product_name"></div>
+                    <div class="text-slate-600 mt-0.5" x-text="docPreviewRow.item.specifications || 'Standard Export Quality'"></div>
+                    <div x-show="docPreviewRow.quote.moq" class="text-[11px] text-slate-500 mt-1">
+                      Packaging / MOQ: <span x-text="`${docPreviewRow.quote.moq} ${docPreviewRow.quote.moq_unit || docPreviewRow.item.unit}`"></span>
+                    </div>
+                  </td>
+                  <td class="p-3 align-top text-right font-semibold whitespace-nowrap"
+                      x-text="`${Number(docPreviewRow.item.required_qty || 0).toLocaleString()} ${docPreviewRow.item.unit}`"></td>
+                  <td class="p-3 align-top text-right font-semibold whitespace-nowrap"
+                      x-text="docUnitPrice(docPreviewRow, docPreviewType).toFixed(2)"></td>
+                  <td class="p-3 align-top text-right font-bold text-slate-900 whitespace-nowrap"
+                      x-text="docTotalAmount(docPreviewRow, docPreviewType).toFixed(2)"></td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="bg-slate-50 font-bold text-sm">
+                  <td colspan="4" class="p-3 text-right">
+                    Grand Total (<span x-text="`${docPreviewRow.order.incoterms} ${docPreviewRow.order.currency}`"></span>):
+                  </td>
+                  <td class="p-3 text-right text-slate-900"
+                      x-text="`${docPreviewRow.order.currency} ${docTotalAmount(docPreviewRow, docPreviewType).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <div class="border border-slate-200 rounded p-3 space-y-1 bg-slate-50">
+              <div class="font-bold text-slate-700">Required Quality &amp; Shipping Documents</div>
+              <p class="text-slate-600"
+                 x-text="docPreviewRow.quote.shipping_docs || 'Commercial Invoice, Packing List, Certificate of Origin, Phytosanitary Certificate, Lab COA, Bill of Lading / LR'"></p>
+              <div class="pt-1 text-[11px] text-slate-500">
+                <strong>Pre-Shipment QC:</strong> <span x-text="docPreviewRow.quote.qc_status || 'Pending QC'"></span>
+              </div>
+            </div>
+            <div class="border border-slate-200 rounded p-3 space-y-1 bg-slate-50">
+              <div class="font-bold text-slate-700">Special Instructions &amp; Notes</div>
+              <p class="text-slate-600"
+                 x-text="docPreviewRow.quote.remarks || docPreviewRow.order.general_notes || 'Goods must strictly conform to agreed specification and moisture/quality tolerances.'"></p>
+            </div>
+          </div>
+
+          <div class="pt-8 flex justify-between items-end border-t border-slate-300">
+            <div class="text-[11px] text-slate-500">
+              This is a system-generated summary from GLDatabase Sourcing Desk.
+            </div>
+            <div class="text-right">
+              <div class="h-10 border-b border-slate-400 w-48 mb-1"></div>
+              <div class="font-bold text-slate-800" x-text="`Authorized Signatory — ${systemSettings.companyName}`"></div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- MODAL 8: ADMIN USER MANAGEMENT & SYSTEM SETTINGS (ALEX & JESU DOSS ONLY) -->
+  <div x-show="modals.adminSettings && canManageAdmin" class="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">User Management &amp; System Settings</h3>
+          <p class="text-xs text-slate-500">Restricted to <strong>Alex</strong> and <strong>Jesu Doss</strong>. Changes sync to Turso across all devices.</p>
+        </div>
+        <button @click="modals.adminSettings = false" class="text-slate-500 hover:text-slate-800 font-bold text-lg">&times;</button>
+      </div>
+
+      <!-- User Roles & Password Management -->
+      <div class="space-y-2">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">Team Access &amp; Passwords</h4>
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b">
+                <th class="p-2.5">User</th>
+                <th class="p-2.5">Role</th>
+                <th class="p-2.5">Permissions</th>
+                <th class="p-2.5">Password</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-for="u in users" :key="u.id">
+                <tr>
+                  <td class="p-2.5 font-bold text-slate-900" x-text="u.name"></td>
+                  <td class="p-2.5">
+                    <select x-model="u.role" @change="saveAccessConfig()" class="border rounded px-2 py-1 bg-white font-semibold">
+                      <option value="admin">Admin</option>
+                      <option value="ops">Operations</option>
+                    </select>
+                  </td>
+                  <td class="p-2.5 text-slate-600"
+                      x-text="u.role === 'admin' ? 'View, Edit, Archive, Delete, User & System Admin' : 'View, Operational Edit & Archive (No Delete/Admin)'"></td>
+                  <td class="p-2.5">
+                    <input type="text" x-model="u.pin" @change="saveAccessConfig()" placeholder="Required"
+                           class="w-24 border rounded px-2 py-1 font-mono" />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- System Settings -->
+      <div class="space-y-3 border-t pt-4 text-xs">
+        <h4 class="font-bold uppercase tracking-wider text-slate-600">System, Logo &amp; Letterhead Settings</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-600">Company Name</label>
+            <input x-model="systemSettings.companyName" @change="saveAccessConfig()" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-600">Default Currency</label>
+            <select x-model="systemSettings.defaultCurrency" @change="saveAccessConfig()" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+              <option>USD</option><option>INR</option><option>EUR</option><option>AED</option><option>GBP</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-semibold text-slate-600">Upload GL Logo Image (Syncs across all devices)</label>
+            <input type="file" accept="image/*" @change="handleLogoUpload($event)" class="w-full border rounded px-3 py-1.5 mt-1 bg-slate-50 text-xs" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-semibold text-slate-600">Or GL Logo File Path / Image URL</label>
+            <input x-model="systemSettings.companyLogoUrl" @change="saveAccessConfig()" placeholder="/gl-logo.png" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-semibold text-slate-600">Header Contact Line</label>
+            <input x-model="systemSettings.companyAddress" @change="saveAccessConfig()" class="w-full border rounded px-3 py-2 mt-1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t">
+        <span x-show="settingsSavedNotice" class="text-xs font-semibold text-emerald-700" x-text="settingsSavedNotice"></span>
+        <button @click="saveAccessConfig(); modals.adminSettings = false" class="ml-auto bg-slate-900 text-white px-4 py-2 rounded text-xs font-semibold">Save &amp; Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared Datalist for Payment Modes -->
+  <datalist id="payment-mode-options">
+    <option value="Irrevocable LC"></option>
+    <option value="85% Advance Payment + 15% Against BL"></option>
+    <option value="100% Advance Payment"></option>
+    <option value="30% Advance + 70% Against BL"></option>
+    <option value="CAD / DP at Sight"></option>
+    <option value="DA 30 Days"></option>
+    <option value="DA 60 Days"></option>
+    <option value="Open Account"></option>
+    <option value="TBA"></option>
+  </datalist>
+
+  <script>
+    function sourcingApp() {
+      const DEFAULT_USERS = [
+        { id: 'alex', name: 'Alex', role: 'admin', pin: '1234' },
+        { id: 'doss', name: 'Jesu Doss', role: 'admin', pin: '1234' },
+        { id: 'tony', name: 'Tony', role: 'ops', pin: '1234' },
+        { id: 'william', name: 'William', role: 'ops', pin: '1234' },
+      ];
+
+      return {
+        users: DEFAULT_USERS,
+        currentUser: null,
+        loginForm: { userId: 'doss', pin: '' },
+        loginError: '',
+        settingsSavedNotice: '',
+        systemSettings: {
+          companyName: 'GL GLOBAL',
+          companyAddress: 'Chennai, Tamil Nadu, India • business@glglobal.in • glglobal.in',
+          companyLogoUrl: '/gl-logo.png',
+          defaultCurrency: 'USD',
+        },
+        activeTab: 'dashboard',
+        dashboardOwnerFilter: 'ALL',
+        buyerSearch: '',
+        supplierSearch: '',
+        supplierStatusFilter: 'ALL',
+        showArchivedSuppliers: false,
+        orderProcessingSearch: '',
+        orderProcessingStageFilter: 'ALL',
+        selectedProductToLink: '',
+        supplierProductError: '',
+        viewingSupplier: null,
+        docPreviewType: 'PI',
+        docPreviewRow: null,
+        glProductSearch: '',
+        glProducts: [],
+        buyers: [],
+        suppliers: [],
+        orders: [],
+        selectedOrderId: '',
+        expandedItems: {},
+        assignTargetItem: null,
+        modals: {
+          glProduct: false,
+          buyer: false,
+          supplier: false,
+          viewSupplier: false,
+          order: false,
+          addProduct: false,
+          assignSupplier: false,
+          execution: false,
+          docPreview: false,
+          adminSettings: false,
+        },
+        forms: {
+          glProduct: {
+            id: null,
+            product_id: '',
+            product_name: '',
+            category: '',
+            origin: '',
+            spec_coa_pdf_name: '',
+            spec_coa_pdf_data: '',
+            hsn_code: 'Need to update',
+            internal_notes: '',
+          },
+          buyer: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' },
+          supplier: {
+            id: null,
+            supplier_code: '',
+            company_name: '',
+            contact_person: '',
+            role_designation: '',
+            phone_whatsapp: '',
+            email: '',
+            facility_type: 'Manufacturing',
+            city_country: '',
+            monthly_capacity: '',
+            certifications: '',
+            coa_doc_url: '',
+            media_folder_url: '',
+            facility_photo_data: '',
+            qual_kyc_gst: false,
+            qual_facility_verified: false,
+            qual_capacity_verified: false,
+            qual_certs_verified: false,
+            qual_coa_verified: false,
+            linked_products: [],
+            supplier_status: 'Under Verification',
+            is_archived: 0,
+          },
+          order: {
+            order_code: '',
+            buyer_id: '',
+            buyer_contact: '',
+            enquiry_received_date: '',
+            enquiry_source: 'Email',
+            destination_country: '',
+            destination_port: '',
+            currency: 'USD',
+            incoterms: 'FOB',
+            payment_terms: 'TBA',
+            status: 'Received',
+            gl_team: '',
+            buyer_documents: '',
+            general_notes: '',
+            target_delivery_date: '',
+            products: [],
+          },
+          singleProduct: { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+          quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: 'RFQ Sent', remarks: '' },
+          execution: {
+            quoteRef: null,
+            order_code: '',
+            buyer_name: '',
+            product_name: '',
+            incoterms: '',
+            po_number: '',
+            execution_stage: 'PO Issued',
+            payment_mode: '',
+            payment_ref: '',
+            qc_status: 'Pending QC',
+            container_no: '',
+            bl_number: '',
+            shipping_bill_no: '',
+            etd: '',
+            eta: '',
+            shipping_docs: '',
+            remarks: '',
+          },
+        },
+
+        // --- ROLE & ACCESS CONTROL ---
+        get selectedLoginUser() {
+          return this.users.find((u) => u.id === this.loginForm.userId) || null;
+        },
+
+        get canManageAdmin() {
+          return this.currentUser && (this.currentUser.role === 'admin' || ['alex', 'doss'].includes(this.currentUser.id));
+        },
+
+        get canPermanentDelete() {
+          return this.canManageAdmin;
+        },
+
+        async loadAccessConfig() {
+          // 1. Apply any cached local values first for instant render
+          try {
+            const savedUsers = JSON.parse(localStorage.getItem('gl_users_config') || 'null');
+            if (Array.isArray(savedUsers) && savedUsers.length) {
+              this.users = savedUsers.map((u, idx) => ({
+                ...u,
+                pin: u.pin || DEFAULT_USERS[idx]?.pin || '1234',
+              }));
+            }
+            const savedSettings = JSON.parse(localStorage.getItem('gl_system_settings') || 'null');
+            if (savedSettings && typeof savedSettings === 'object') {
+              this.systemSettings = { ...this.systemSettings, ...savedSettings };
+            }
+          } catch (_) {}
+
+          // 2. Sync authoritative settings & user passwords from Turso (/api/settings)
+          try {
+            const res = await fetch('/api/settings');
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data.users) && data.users.length) {
+                this.users = data.users.map((u, idx) => ({
+                  ...u,
+                  pin: u.pin || DEFAULT_USERS[idx]?.pin || '1234',
+                }));
+                localStorage.setItem('gl_users_config', JSON.stringify(this.users));
+              }
+              if (data.systemSettings && typeof data.systemSettings === 'object') {
+                this.systemSettings = { ...this.systemSettings, ...data.systemSettings };
+                localStorage.setItem('gl_system_settings', JSON.stringify(this.systemSettings));
+              }
+            }
+          } catch (_) {}
+        },
+
+        async saveAccessConfig() {
+          localStorage.setItem('gl_users_config', JSON.stringify(this.users));
+          localStorage.setItem('gl_system_settings', JSON.stringify(this.systemSettings));
+          if (this.currentUser) {
+            this.currentUser = this.users.find((u) => u.id === this.currentUser.id) || this.currentUser;
+          }
+          try {
+            const res = await fetch('/api/settings', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                users: this.users,
+                systemSettings: this.systemSettings,
+              }),
+            });
+            if (res.ok) {
+              this.settingsSavedNotice = 'Saved to Turso across all devices.';
+              setTimeout(() => {
+                this.settingsSavedNotice = '';
+              }, 3000);
+            }
+          } catch (_) {}
+        },
+
+        handleLogoUpload(event) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = async () => {
+              const canvas = document.createElement('canvas');
+              const maxDim = 256;
+              const scale = Math.max(img.width, img.height) > maxDim ? maxDim / Math.max(img.width, img.height) : 1;
+              canvas.width = Math.round(img.width * scale);
+              canvas.height = Math.round(img.height * scale);
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              this.systemSettings.companyLogoUrl = canvas.toDataURL('image/png');
+              await this.saveAccessConfig();
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        },
+
+        submitLogin() {
+          this.loginError = '';
+          const user = this.selectedLoginUser;
+          if (!user) return;
+          const expectedPin = String(user.pin || '1234');
+          if (!this.loginForm.pin || String(this.loginForm.pin) !== expectedPin) {
+            this.loginError = 'Invalid password for ' + user.name;
+            return;
+          }
+          this.currentUser = user;
+          this.loginForm.pin = '';
+        },
+
+        logoutUser() {
+          this.currentUser = null;
+          this.loginForm.pin = '';
+        },
+
+        // --- DASHBOARD COMPUTATIONS ---
+        get dashboardMetrics() {
+          const newEnquiries = [];
+          const quotesPending = [];
+          const samplesPending = [];
+          const awaitingBuyer = [];
+
+          for (const order of this.orders) {
+            const st = order.status || 'Received';
+            if (['Received', 'Clarification Pending', 'Requirement Confirmed'].includes(st)) {
+              newEnquiries.push(order);
+            }
+            if (['GL Quote Sent', 'Negotiation'].includes(st)) {
+              awaitingBuyer.push(order);
+            }
+            for (const item of order.items || []) {
+              for (const q of item.quotes || []) {
+                if (q.status === 'RFQ Sent') {
+                  quotesPending.push({ order, item, quote: q });
+                }
+                if (['Sample Requested', 'Sample Received'].includes(q.status)) {
+                  samplesPending.push({ order, item, quote: q });
+                }
+              }
+            }
+          }
+
+          return { newEnquiries, quotesPending, samplesPending, awaitingBuyer };
+        },
+
+        countOrdersByStage(stage) {
+          return this.awardedOrderRows.filter((r) => (r.quote.execution_stage || 'PO Issued') === stage).length;
+        },
+
+        get dashboardActionItems() {
+          const actions = [];
+
+          for (const order of this.dashboardMetrics.newEnquiries) {
+            actions.push({
+              key: `enq-${order.id}`,
+              category: 'New Enquiry',
+              badgeClass: 'bg-sky-100 text-sky-800',
+              ref: order.order_code,
+              party: order.buyer_name,
+              product: `${(order.items || []).length} product line(s)`,
+              stage: order.status || 'Received',
+              nextAction: order.status === 'Clarification Pending' ? 'Follow up buyer specs' : 'Confirm specs & send RFQs to suppliers',
+              owner: order.gl_team || 'Jesu Doss',
+              openFn: () => {
+                this.selectedOrderId = order.id;
+                this.activeTab = 'orders';
+              },
+            });
+          }
+
+          for (const { order, item, quote } of this.dashboardMetrics.quotesPending) {
+            actions.push({
+              key: `qp-${quote.id}`,
+              category: 'Quote Pending',
+              badgeClass: 'bg-amber-100 text-amber-800',
+              ref: order.order_code,
+              party: `${quote.supplier_name} (for ${order.buyer_name})`,
+              product: item.product_name,
+              stage: 'RFQ Sent',
+              nextAction: 'Follow up supplier price & MOQ',
+              owner: order.gl_team || 'Tony',
+              openFn: () => this.openOrderFromProcessing(order.id, item.id),
+            });
+          }
+
+          for (const { order, item, quote } of this.dashboardMetrics.samplesPending) {
+            actions.push({
+              key: `sp-${quote.id}`,
+              category: 'Sample Pending',
+              badgeClass: 'bg-teal-100 text-teal-800',
+              ref: order.order_code,
+              party: `${quote.supplier_name} (for ${order.buyer_name})`,
+              product: item.product_name,
+              stage: quote.status,
+              nextAction: quote.status === 'Sample Requested' ? 'Collect courier AWB & track sample' : 'Complete QC check & approve sample',
+              owner: order.gl_team || 'William',
+              openFn: () => this.openOrderFromProcessing(order.id, item.id),
+            });
+          }
+
+          for (const order of this.dashboardMetrics.awaitingBuyer) {
+            actions.push({
+              key: `ab-${order.id}`,
+              category: 'Awaiting Buyer',
+              badgeClass: 'bg-indigo-100 text-indigo-800',
+              ref: order.order_code,
+              party: order.buyer_name,
+              product: `${(order.items || []).length} product line(s)`,
+              stage: order.status,
+              nextAction: 'Follow up buyer feedback & close commercial terms',
+              owner: order.gl_team || 'Alex',
+              openFn: () => {
+                this.selectedOrderId = order.id;
+                this.activeTab = 'orders';
+              },
+            });
+          }
+
+          for (const row of this.awardedOrderRows) {
+            const st = row.quote.execution_stage || 'PO Issued';
+            if (st === 'Delivered') continue;
+            const nextMap = {
+              'PO Issued': 'Confirm supplier production schedule & advance/LC',
+              'Production / QC': 'Complete pre-shipment QC & COA sign-off',
+              'Docs & Customs': 'Verify BL/LR, Shipping Bill, COO & Phyto docs',
+              'Dispatched / On Board': 'Share final BL & docs with buyer; track ETA',
+            };
+            actions.push({
+              key: `op-${row.quote.id}`,
+              category: 'Order Execution',
+              badgeClass: 'bg-purple-100 text-purple-800',
+              ref: row.quote.po_number || row.order.order_code,
+              party: `${row.order.buyer_name} ← ${row.quote.supplier_name}`,
+              product: `${row.item.product_name} (${row.item.required_qty} ${row.item.unit})`,
+              stage: st,
+              nextAction: nextMap[st] || 'Update shipment milestone',
+              owner: row.order.gl_team || 'Jesu Doss',
+              openFn: () => {
+                this.activeTab = 'orderProcessing';
+              },
+            });
+          }
+
+          return actions;
+        },
+
+        get filteredDashboardActionItems() {
+          if (this.dashboardOwnerFilter === 'ALL') return this.dashboardActionItems;
+          return this.dashboardActionItems.filter((a) => a.owner === this.dashboardOwnerFilter);
+        },
+
+        get activeOrder() {
+          return this.orders.find((o) => String(o.id) === String(this.selectedOrderId)) || null;
+        },
+
+        get activeSuppliersCount() {
+          return this.suppliers.filter((s) => !s.is_archived).length;
+        },
+
+        get archivedSuppliersCount() {
+          return this.suppliers.filter((s) => s.is_archived).length;
+        },
+
+        get awardedOrderRows() {
+          const rows = [];
+          for (const order of this.orders) {
+            for (const item of order.items || []) {
+              for (const quote of item.quotes || []) {
+                if (Number(quote.is_selected) === 1 || quote.status === 'Selected') {
+                  if (!quote.execution_stage) quote.execution_stage = 'PO Issued';
+                  if (!quote.qc_status) quote.qc_status = 'Pending QC';
+                  rows.push({ order, item, quote });
+                }
+              }
+            }
+          }
+          return rows;
+        },
+
+        get filteredAwardedOrderRows() {
+          const q = this.orderProcessingSearch.toLowerCase().trim();
+          return this.awardedOrderRows.filter(({ order, item, quote }) => {
+            const stage = quote.execution_stage || 'PO Issued';
+            const stageOk = this.orderProcessingStageFilter === 'ALL' || stage === this.orderProcessingStageFilter;
+            if (!stageOk) return false;
+            if (!q) return true;
+            return [
+              order.order_code,
+              order.buyer_name,
+              order.destination_country,
+              order.destination_port,
+              order.incoterms,
+              order.payment_terms,
+              item.product_name,
+              quote.supplier_name,
+              quote.po_number,
+              quote.payment_mode,
+              quote.payment_ref,
+              quote.bl_number,
+              quote.shipping_bill_no,
+              quote.container_no,
+              quote.shipping_docs,
+              stage,
+            ].some((f) => String(f || '').toLowerCase().includes(q));
+          });
+        },
+
+        get awardedQuotesCount() {
+          return this.awardedOrderRows.length;
+        },
+
+        get filteredGlProducts() {
+          const q = this.glProductSearch.toLowerCase().trim();
+          if (!q) return this.glProducts;
+          return this.glProducts.filter((gp) =>
+            [
+              gp.product_id,
+              gp.product_name,
+              gp.category,
+              gp.origin,
+              gp.spec_coa_pdf_name,
+              gp.hsn_code,
+              gp.internal_notes,
+            ].some((f) => String(f || '').toLowerCase().includes(q))
+          );
+        },
+
+        get filteredBuyers() {
+          const q = this.buyerSearch.toLowerCase().trim();
+          if (!q) return this.buyers;
+          return this.buyers.filter((b) =>
+            [b.company_name, b.contact_person, b.phone_whatsapp, b.email, b.destination_port, b.notes]
+              .some((field) => String(field || '').toLowerCase().includes(q))
+          );
+        },
+
+        get filteredSuppliers() {
+          const q = this.supplierSearch.toLowerCase().trim();
+          return this.suppliers.filter((s) => {
+            if (!this.showArchivedSuppliers && s.is_archived) return false;
+            const statusOk = this.supplierStatusFilter === 'ALL' || (s.supplier_status || 'Under Verification') === this.supplierStatusFilter;
+            if (!statusOk) return false;
+            if (!q) return true;
+            const productNames = (s.linked_products || []).map((lp) => `${lp.product_id} ${lp.product_name}`).join(' ');
+            return [
+              s.supplier_code,
+              s.company_name,
+              s.contact_person,
+              s.role_designation,
+              s.phone_whatsapp,
+              s.email,
+              s.facility_type,
+              s.city_country,
+              s.certifications,
+              s.monthly_capacity,
+              productNames,
+              s.supplier_status,
+            ].some((field) => String(field || '').toLowerCase().includes(q));
+          });
+        },
+
+        qualificationScore(s) {
+          if (!s) return 0;
+          return [
+            s.qual_kyc_gst,
+            s.qual_facility_verified,
+            s.qual_capacity_verified,
+            s.qual_certs_verified,
+            s.qual_coa_verified,
+          ].filter(Boolean).length;
+        },
+
+        supplierStatusBadge(status) {
+          switch (status) {
+            case 'Active':
+              return 'bg-emerald-100 text-emerald-800';
+            case 'Inactive':
+              return 'bg-red-100 text-red-800';
+            default:
+              return 'bg-amber-100 text-amber-800';
+          }
+        },
+
+        buyerProductsSummary(buyerId) {
+          const matchingOrders = this.orders.filter((o) => String(o.buyer_id) === String(buyerId));
+          const names = [];
+          for (const o of matchingOrders) {
+            for (const item of o.items || []) {
+              names.push(item.product_name);
+            }
+          }
+          return names.length ? names.join(', ') : '-';
+        },
+
+        openOrderFromProcessing(orderId, itemId) {
+          this.selectedOrderId = orderId;
+          this.expandedItems[itemId] = true;
+          this.activeTab = 'orders';
+        },
+
+        openDocPreviewModal(row, type = 'PI') {
+          this.docPreviewRow = row;
+          this.docPreviewType = type;
+          this.modals.docPreview = true;
+        },
+
+        docUnitPrice(row, type) {
+          if (!row) return 0;
+          if (type === 'PI') {
+            return Number(row.item.buyer_target_price) || Number(row.quote.quoted_price) || 0;
+          }
+          return Number(row.quote.quoted_price) || 0;
+        },
+
+        docTotalAmount(row, type) {
+          if (!row) return 0;
+          const qty = Number(row.item.required_qty) || 0;
+          return qty * this.docUnitPrice(row, type);
+        },
+
+        openExecutionModal(row) {
+          const { order, item, quote } = row;
+          this.forms.execution = {
+            quoteRef: quote,
+            order_code: order.order_code,
+            buyer_name: order.buyer_name,
+            product_name: item.product_name,
+            incoterms: order.incoterms || 'FOB',
+            po_number: quote.po_number || '',
+            execution_stage: quote.execution_stage || 'PO Issued',
+            payment_mode: quote.payment_mode || order.payment_terms || '',
+            payment_ref: quote.payment_ref || '',
+            qc_status: quote.qc_status || 'Pending QC',
+            container_no: quote.container_no || '',
+            bl_number: quote.bl_number || '',
+            shipping_bill_no: quote.shipping_bill_no || '',
+            etd: quote.etd || '',
+            eta: quote.eta || '',
+            shipping_docs: quote.shipping_docs || '',
+            remarks: quote.remarks || '',
+          };
+          this.modals.execution = true;
+        },
+
+        async saveExecutionDetails() {
+          const q = this.forms.execution.quoteRef;
+          if (!q) return;
+          q.po_number = this.forms.execution.po_number;
+          q.execution_stage = this.forms.execution.execution_stage;
+          q.payment_mode = this.forms.execution.payment_mode;
+          q.payment_ref = this.forms.execution.payment_ref;
+          q.qc_status = this.forms.execution.qc_status;
+          q.container_no = this.forms.execution.container_no;
+          q.bl_number = this.forms.execution.bl_number;
+          q.shipping_bill_no = this.forms.execution.shipping_bill_no;
+          q.etd = this.forms.execution.etd;
+          q.eta = this.forms.execution.eta;
+          q.shipping_docs = this.forms.execution.shipping_docs;
+          q.remarks = this.forms.execution.remarks;
+
+          await this.updateQuote(q);
+          this.modals.execution = false;
+          await this.loadAll();
+        },
+
+        exportOrderProcessingCsv() {
+          if (this.filteredAwardedOrderRows.length === 0) return;
+          const esc = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+          const headers = [
+            'Enquiry Ref',
+            'Supplier PO #',
+            'Execution Stage',
+            'Buyer Company',
+            'Destination Country',
+            'Destination Port',
+            'Incoterms',
+            'Payment Mode',
+            'LC / UTR Ref',
+            'Currency',
+            'Product Name',
+            'Specifications',
+            'Required Qty',
+            'Unit',
+            'Buyer Target Price',
+            'Selected Supplier',
+            'Supplier Contact',
+            'Supplier Phone/WA',
+            'Quoted Price',
+            'Margin %',
+            'Est. Total Profit',
+            'QC Status',
+            'BL / LR Number',
+            'Shipping Bill #',
+            'Container / Vehicle #',
+            'ETD',
+            'ETA',
+            'Shipping Docs',
+            'Remarks',
+          ];
+
+          const lines = [headers.map(esc).join(',')];
+          for (const { order, item, quote } of this.filteredAwardedOrderRows) {
+            const target = Number(item.buyer_target_price) || 0;
+            const quoted = Number(quote.quoted_price) || 0;
+            const qty = Number(item.required_qty) || 0;
+            const marginPct = target > 0 && quoted > 0 ? (((target - quoted) / target) * 100).toFixed(2) + '%' : '';
+            const totalProfit = target > 0 && quoted > 0 && qty > 0 ? ((target - quoted) * qty).toFixed(2) : '';
+
+            lines.push(
+              [
+                order.order_code,
+                quote.po_number,
+                quote.execution_stage || 'PO Issued',
+                order.buyer_name,
+                order.destination_country,
+                order.destination_port,
+                order.incoterms,
+                quote.payment_mode || order.payment_terms,
+                quote.payment_ref,
+                order.currency,
+                item.product_name,
+                item.specifications,
+                item.required_qty,
+                item.unit,
+                item.buyer_target_price,
+                quote.supplier_name,
+                quote.supplier_contact,
+                quote.supplier_phone,
+                quote.quoted_price,
+                marginPct,
+                totalProfit,
+                quote.qc_status || 'Pending QC',
+                quote.bl_number,
+                quote.shipping_bill_no,
+                quote.container_no,
+                quote.etd,
+                quote.eta,
+                quote.shipping_docs,
+                quote.remarks,
+              ]
+                .map(esc)
+                .join(',')
+            );
+          }
+
+          const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const dateStr = new Date().toISOString().slice(0, 10);
+          a.href = url;
+          a.download = `Order_Processing_${dateStr}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        },
+
+        async init() {
+          await this.loadAccessConfig();
+          await this.loadAll();
+          if (this.orders.length > 0 && !this.selectedOrderId) {
+            this.selectedOrderId = this.orders[0].id;
+            if (this.orders[0].items.length > 0) {
+              this.expandedItems[this.orders[0].items[0].id] = true;
+            }
+          }
+        },
+
+        normalizeSupplierStatus(status) {
+          const s = String(status || '').replace(/^\d+\s*-\s*/, '').trim();
+          if (s === 'Awarded / PO Issued') return 'Selected';
+          if (s === 'Rejected / Backup') return 'Not Selected';
+          const allowed = ['RFQ Sent', 'Quote Received', 'Sample Requested', 'Sample Received', 'Sample Approved', 'Selected', 'Not Selected'];
+          return allowed.includes(s) ? s : 'RFQ Sent';
+        },
+
+        normalizeEnquiryStatus(status) {
+          const s = String(status || '').trim();
+          const allowed = [
+            'Received',
+            'Clarification Pending',
+            'Requirement Confirmed',
+            'Sourcing',
+            'GL Quote Sent',
+            'Negotiation',
+            'Confirmed for Execution',
+            'Closed',
+            'On Hold',
+          ];
+          return allowed.includes(s) ? s : 'Received';
+        },
+
+        async loadAll() {
+          const [gpRes, dirRes, ordRes] = await Promise.all([
+            fetch('/api/gl-products'),
+            fetch('/api/directory'),
+            fetch('/api/orders'),
+          ]);
+          this.glProducts = await gpRes.json();
+          const dir = await dirRes.json();
+          this.buyers = dir.buyers || [];
+          this.suppliers = (dir.suppliers || []).map((s) => ({
+            ...s,
+            qual_kyc_gst: Boolean(Number(s.qual_kyc_gst)),
+            qual_facility_verified: Boolean(Number(s.qual_facility_verified)),
+            qual_capacity_verified: Boolean(Number(s.qual_capacity_verified)),
+            qual_certs_verified: Boolean(Number(s.qual_certs_verified)),
+            qual_coa_verified: Boolean(Number(s.qual_coa_verified)),
+          }));
+          const rawOrders = await ordRes.json();
+          this.orders = (rawOrders || []).map((o) => ({
+            ...o,
+            status: this.normalizeEnquiryStatus(o.status),
+            items: (o.items || []).map((item) => ({
+              ...item,
+              quotes: (item.quotes || []).map((q) => ({
+                ...q,
+                status: Number(q.is_selected) === 1 ? 'Selected' : this.normalizeSupplierStatus(q.status),
+              })),
+            })),
+          }));
+        },
+
+        toggleItem(id) {
+          this.expandedItems[id] = !this.expandedItems[id];
+        },
+
+        bestQuote(item) {
+          const valid = item.quotes.map((q) => Number(q.quoted_price)).filter((p) => p > 0);
+          return valid.length ? Math.min(...valid) : 0;
+        },
+
+        calcMargin(target, quote) {
+          if (!target || !quote) return 0;
+          return (((target - quote) / target) * 100).toFixed(1);
+        },
+
+        waLink(phone) {
+          const clean = String(phone || '').replace(/[^0-9]/g, '');
+          return clean ? `https://wa.me/${clean}` : '#';
+        },
+
+        // --- STEP 1: PRODUCT MASTER CRUD ---
+        openGlProductModal(gp = null) {
+          this.forms.glProduct = gp
+            ? { ...gp }
+            : {
+                id: null,
+                product_id: '',
+                product_name: '',
+                category: '',
+                origin: '',
+                spec_coa_pdf_name: '',
+                spec_coa_pdf_data: '',
+                hsn_code: 'Need to update',
+                internal_notes: '',
+              };
+          this.modals.glProduct = true;
+        },
+
+        handleSpecCoaPdfUpload(event) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Please upload a PDF file.');
+            event.target.value = '';
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.forms.glProduct.spec_coa_pdf_name = file.name;
+            this.forms.glProduct.spec_coa_pdf_data = reader.result;
+          };
+          reader.readAsDataURL(file);
+        },
+
+        clearSpecCoaPdf() {
+          this.forms.glProduct.spec_coa_pdf_name = '';
+          this.forms.glProduct.spec_coa_pdf_data = '';
+        },
+
+        async saveGlProduct() {
+          if (!this.forms.glProduct.product_name.trim()) return alert('Product name is required');
+          const isEdit = Boolean(this.forms.glProduct.id);
+          await fetch(isEdit ? `/api/gl-products/${this.forms.glProduct.id}` : '/api/gl-products', {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.glProduct),
+          });
+          this.modals.glProduct = false;
+          this.activeTab = 'glProducts';
+          await this.loadAll();
+        },
+
+        async deleteGlProduct(id) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm('Permanently delete this product from Products?')) return;
+          await fetch(`/api/gl-products/${id}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+
+        // --- BUYER CRUD ---
+        openBuyerModal(buyer = null) {
+          this.forms.buyer = buyer
+            ? { ...buyer }
+            : { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' };
+          this.modals.buyer = true;
+        },
+
+        async saveBuyer() {
+          if (!this.forms.buyer.company_name) return alert('Company name required');
+          const isEdit = Boolean(this.forms.buyer.id);
+          const url = isEdit ? `/api/buyers/${this.forms.buyer.id}` : '/api/buyers';
+          await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.buyer),
+          });
+          this.modals.buyer = false;
+          this.activeTab = 'buyers';
+          await this.loadAll();
+        },
+
+        async deleteBuyer(buyer) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm(`Permanently delete buyer "${buyer.company_name}"?`)) return;
+          const res = await fetch(`/api/buyers/${buyer.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not delete buyer');
+          await this.loadAll();
+        },
+
+        // --- SUPPLIER CRUD & QUALIFICATION ---
+        nextSupplierCode() {
+          const maxNum = this.suppliers.reduce((max, s) => {
+            const m = String(s.supplier_code || '').match(/(\d+)$/);
+            const num = m ? parseInt(m[1], 10) : Number(s.id) || 0;
+            return num > max ? num : max;
+          }, 0);
+          return `GL-SUP-${String(maxNum + 1).padStart(4, '0')}`;
+        },
+
+        openViewSupplierModal(supplier) {
+          this.viewingSupplier = supplier;
+          this.modals.viewSupplier = true;
+        },
+
+        openSupplierModal(supplier = null) {
+          this.selectedProductToLink = '';
+          this.supplierProductError = '';
+          this.forms.supplier = supplier
+            ? {
+                ...supplier,
+                supplier_code: supplier.supplier_code || `GL-SUP-${String(supplier.id).padStart(4, '0')}`,
+                role_designation: supplier.role_designation || '',
+                facility_type: supplier.facility_type || 'Manufacturing',
+                monthly_capacity: supplier.monthly_capacity || '',
+                certifications: supplier.certifications || '',
+                coa_doc_url: supplier.coa_doc_url || '',
+                media_folder_url: supplier.media_folder_url || '',
+                facility_photo_data: supplier.facility_photo_data || '',
+                qual_kyc_gst: Boolean(supplier.qual_kyc_gst),
+                qual_facility_verified: Boolean(supplier.qual_facility_verified),
+                qual_capacity_verified: Boolean(supplier.qual_capacity_verified),
+                qual_certs_verified: Boolean(supplier.qual_certs_verified),
+                qual_coa_verified: Boolean(supplier.qual_coa_verified),
+                linked_products: Array.isArray(supplier.linked_products) ? [...supplier.linked_products] : [],
+                supplier_status: supplier.supplier_status || 'Under Verification',
+                is_archived: Number(supplier.is_archived) || 0,
+              }
+            : {
+                id: null,
+                supplier_code: this.nextSupplierCode(),
+                company_name: '',
+                contact_person: '',
+                role_designation: '',
+                phone_whatsapp: '',
+                email: '',
+                facility_type: 'Manufacturing',
+                city_country: '',
+                monthly_capacity: '',
+                certifications: '',
+                coa_doc_url: '',
+                media_folder_url: '',
+                facility_photo_data: '',
+                qual_kyc_gst: false,
+                qual_facility_verified: false,
+                qual_capacity_verified: false,
+                qual_certs_verified: false,
+                qual_coa_verified: false,
+                linked_products: [],
+                supplier_status: 'Under Verification',
+                is_archived: 0,
+              };
+          this.modals.supplier = true;
+        },
+
+        handleFacilityPhotoUpload(event) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const maxW = 640;
+              const scale = img.width > maxW ? maxW / img.width : 1;
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              this.forms.supplier.facility_photo_data = canvas.toDataURL('image/jpeg', 0.72);
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        },
+
+        addLinkedProductToSupplier() {
+          this.supplierProductError = '';
+          if (!this.selectedProductToLink) return;
+          const gp = this.glProducts.find((p) => String(p.id) === String(this.selectedProductToLink));
+          if (!gp) return;
+
+          const exists = this.forms.supplier.linked_products.some(
+            (lp) =>
+              String(lp.gl_product_id) === String(gp.id) ||
+              (gp.product_id && lp.product_id === gp.product_id)
+          );
+          if (exists) {
+            this.supplierProductError = `"${gp.product_name}" is already linked to this supplier.`;
+            return;
+          }
+
+          this.forms.supplier.linked_products.push({
+            gl_product_id: gp.id,
+            product_id: gp.product_id || '',
+            product_name: gp.product_name,
+          });
+          this.selectedProductToLink = '';
+        },
+
+        removeLinkedProductFromSupplier(index) {
+          this.forms.supplier.linked_products.splice(index, 1);
+          this.supplierProductError = '';
+        },
+
+        async saveSupplier() {
+          if (!this.forms.supplier.company_name.trim()) return alert('Supplier name required');
+          const isEdit = Boolean(this.forms.supplier.id);
+          const url = isEdit ? `/api/suppliers/${this.forms.supplier.id}` : '/api/suppliers';
+          await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.supplier),
+          });
+          this.modals.supplier = false;
+          this.activeTab = 'suppliers';
+          await this.loadAll();
+        },
+
+        async toggleArchiveSupplier(supplier) {
+          const nextState = supplier.is_archived ? 0 : 1;
+          const label = nextState ? 'Archive' : 'Restore';
+          if (!confirm(`${label} supplier "${supplier.company_name}"?`)) return;
+          await fetch(`/api/suppliers/${supplier.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archive_only: true, is_archived: nextState }),
+          });
+          await this.loadAll();
+        },
+
+        async deleteSupplier(supplier) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm(`Permanently delete supplier "${supplier.company_name}"?`)) return;
+          const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not delete supplier');
+          await this.loadAll();
+        },
+
+        // --- STEP 2: BUYER ENQUIRIES ---
+        onSelectEnquiryBuyer() {
+          const selected = this.buyers.find((b) => String(b.id) === String(this.forms.order.buyer_id));
+          if (!selected) return;
+          if (!this.forms.order.buyer_contact && selected.contact_person) {
+            this.forms.order.buyer_contact = selected.contact_person;
+          }
+          if (!this.forms.order.destination_port && selected.destination_port) {
+            this.forms.order.destination_port = selected.destination_port;
+          }
+        },
+
+        applyGlProductToRow(row) {
+          const gp = this.glProducts.find((item) => String(item.id) === String(row.gl_product_id));
+          if (!gp) return;
+          row.product_name = gp.product_name;
+          const parts = [
+            gp.product_id ? `ID: ${gp.product_id}` : '',
+            gp.origin ? `Origin: ${gp.origin}` : '',
+            gp.hsn_code && gp.hsn_code !== 'Need to update' ? `HSN: ${gp.hsn_code}` : '',
+          ].filter(Boolean);
+          row.specifications = parts.join(' | ');
+        },
+
+        openNewOrderModal() {
+          const firstBuyer = this.buyers[0];
+          const today = new Date().toISOString().slice(0, 10);
+          this.forms.order = {
+            order_code: `ENQ-${new Date().getFullYear()}-${String(this.orders.length + 1).padStart(3, '0')}`,
+            buyer_id: firstBuyer?.id || '',
+            buyer_contact: firstBuyer?.contact_person || '',
+            enquiry_received_date: today,
+            enquiry_source: 'Email',
+            destination_country: '',
+            destination_port: firstBuyer?.destination_port || '',
+            currency: this.systemSettings.defaultCurrency || 'USD',
+            incoterms: 'FOB',
+            payment_terms: 'Irrevocable LC',
+            status: 'Received',
+            gl_team: this.currentUser?.name || '',
+            buyer_documents: '',
+            general_notes: '',
+            target_delivery_date: '',
+            products: [
+              { gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
+            ],
+          };
+          this.modals.order = true;
+        },
+
+        addProductRow() {
+          this.forms.order.products.push({
+            gl_product_id: '',
+            product_name: '',
+            specifications: '',
+            required_qty: '',
+            unit: 'KG',
+            buyer_target_price: '',
+          });
+        },
+
+        async saveOrder() {
+          if (!this.forms.order.buyer_id) return alert('Select a buyer');
+          if (!this.forms.order.destination_country.trim()) return alert('Destination Country is required');
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.order),
+          });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || 'Could not save enquiry');
+          this.modals.order = false;
+          this.activeTab = 'orders';
+          await this.loadAll();
+          this.selectedOrderId = data.id;
+        },
+
+        async updateOrderStatus(order) {
+          await fetch(`/api/orders/${order.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: order.status }),
+          });
+        },
+
+        async deleteOrder(orderId) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm('Permanently delete this entire Buyer Enquiry and all its products/quotes?')) return;
+          await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
+          this.selectedOrderId = '';
+          await this.loadAll();
+          if (this.orders.length > 0) this.selectedOrderId = this.orders[0].id;
+        },
+
+        openAddProductModal() {
+          this.forms.singleProduct = {
+            id: null,
+            gl_product_id: '',
+            product_name: '',
+            specifications: '',
+            required_qty: '',
+            unit: 'KG',
+            buyer_target_price: '',
+          };
+          this.modals.addProduct = true;
+        },
+
+        openEditProductModal(item) {
+          this.forms.singleProduct = { ...item, gl_product_id: item.gl_product_id || '' };
+          this.modals.addProduct = true;
+        },
+
+        async saveSingleProduct() {
+          if (!this.forms.singleProduct.product_name) return alert('Product name required');
+          const isEdit = Boolean(this.forms.singleProduct.id);
+          const url = isEdit ? `/api/items/${this.forms.singleProduct.id}` : `/api/orders/${this.activeOrder.id}/items`;
+          await fetch(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.singleProduct),
+          });
+          this.forms.singleProduct = { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
+          this.modals.addProduct = false;
+          await this.loadAll();
+        },
+
+        async deleteProduct(itemId) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          if (!confirm('Permanently remove this product and all its supplier quotes?')) return;
+          await fetch(`/api/items/${itemId}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+
+        openAssignSupplier(item) {
+          this.assignTargetItem = item;
+          this.forms.quote = {
+            supplier_id: '',
+            quoted_price: '',
+            moq: '',
+            moq_unit: item.unit || 'KG',
+            lead_time_days: '',
+            status: 'RFQ Sent',
+            remarks: '',
+          };
+          this.modals.assignSupplier = true;
+        },
+
+        async saveAssignedSupplier() {
+          if (!this.forms.quote.supplier_id) return alert('Select a supplier');
+          await fetch(`/api/items/${this.assignTargetItem.id}/quotes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forms.quote),
+          });
+          this.modals.assignSupplier = false;
+          this.expandedItems[this.assignTargetItem.id] = true;
+          await this.loadAll();
+        },
+
+        async updateQuote(q) {
+          await fetch(`/api/quotes/${q.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+        },
+
+        async onSupplierStatusChange(q) {
+          q.is_selected = q.status === 'Selected' ? 1 : 0;
+          if (q.is_selected) {
+            if (!q.execution_stage) q.execution_stage = 'PO Issued';
+            if (!q.payment_mode && this.activeOrder?.payment_terms) {
+              q.payment_mode = this.activeOrder.payment_terms;
+            }
+          }
+          await this.updateQuote(q);
+          await this.loadAll();
+        },
+
+        async toggleWinner(q) {
+          q.is_selected = q.is_selected ? 0 : 1;
+          if (q.is_selected) {
+            q.status = 'Selected';
+            if (!q.execution_stage) q.execution_stage = 'PO Issued';
+            if (!q.payment_mode && this.activeOrder?.payment_terms) {
+              q.payment_mode = this.activeOrder.payment_terms;
+            }
+          } else if (q.status === 'Selected') {
+            q.status = 'Not Selected';
+          }
+          await this.updateQuote(q);
+          await this.loadAll();
+        },
+
+        async deleteQuote(quoteId) {
+          if (!this.canPermanentDelete) return alert('Permanent deletion is restricted to Alex and Jesu Doss.');
+          await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
+          await this.loadAll();
+        },
+      };
+    }
+  </script>
+</body>
+</html>

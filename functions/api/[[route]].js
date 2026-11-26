@@ -231,7 +231,7 @@ function parseLinkedProducts(raw) {
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const path = url.pathname.replace(/\/\$/, '');
+  const path = url.pathname.replace(/\/$/, '');
   const method = request.method.toUpperCase();
 
   if (!env.TURSO_DATABASE_URL || !env.TURSO_AUTH_TOKEN) {
@@ -340,7 +340,7 @@ export async function onRequest(context) {
       }
     }
 
-    const glProdMatch = path.match(/^\/api\/gl-products\/(\d+)\$/);
+    const glProdMatch = path.match(/^\/api\/gl-products\/(\d+)$/);
     if (glProdMatch) {
       const id = glProdMatch[1];
       if (method === 'PUT') {
@@ -412,7 +412,7 @@ export async function onRequest(context) {
     }
 
     // 3. PUT & DELETE /api/buyers/:id
-    const buyerMatch = path.match(/^\/api\/buyers\/(\d+)\$/);
+    const buyerMatch = path.match(/^\/api\/buyers\/(\d+)$/);
     if (buyerMatch) {
       const buyerId = buyerMatch[1];
       if (method === 'PUT') {
@@ -513,7 +513,7 @@ export async function onRequest(context) {
     }
 
     // 5. PUT & DELETE /api/suppliers/:id
-    const supplierMatch = path.match(/^\/api\/suppliers\/(\d+)\$/);
+    const supplierMatch = path.match(/^\/api\/suppliers\/(\d+)$/);
     if (supplierMatch) {
       const supplierId = supplierMatch[1];
       if (method === 'PUT') {
@@ -672,3 +672,334 @@ export async function onRequest(context) {
         }
 
         const orderRes = await db.execute({
+          sql: `INSERT INTO orders
+                (order_code, buyer_id, buyer_contact, enquiry_received_date, enquiry_source, destination_country, currency, incoterms, payment_terms, gl_team, buyer_documents, general_notes, target_delivery_date, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          args: [
+            order_code,
+            buyer_id,
+            buyer_contact || '',
+            enquiry_received_date || '',
+            enquiry_source || 'Email',
+            String(destination_country).trim(),
+            currency || 'USD',
+            incoterms || 'FOB',
+            payment_terms || 'TBA',
+            gl_team || '',
+            buyer_documents || '',
+            general_notes || '',
+            target_delivery_date || '',
+            status || 'Received',
+          ],
+        });
+        const orderId = orderRes.rows[0].id;
+
+        if (Array.isArray(products)) {
+          for (const p of products) {
+            if (!p.product_name || !p.product_name.trim()) continue;
+            await db.execute({
+              sql: `INSERT INTO order_items (order_id, gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              args: [
+                orderId,
+                p.gl_product_id ? Number(p.gl_product_id) : null,
+                p.product_name.trim(),
+                p.specifications || '',
+                Number(p.required_qty) || 0,
+                p.unit || 'MT',
+                Number(p.buyer_target_price) || 0,
+              ],
+            });
+          }
+        }
+        return jsonResponse({ id: orderId });
+      }
+    }
+
+    // 7. PUT & DELETE /api/orders/:orderId
+    const orderMatch = path.match(/^\/api\/orders\/(\d+)$/);
+    if (orderMatch) {
+      const orderId = orderMatch[1];
+      if (method === 'PUT') {
+        const body = await request.json();
+        if (body.status !== undefined) {
+          await db.execute({
+            sql: `UPDATE orders SET status = ? WHERE id = ?`,
+            args: [body.status || 'Received', orderId],
+          });
+        }
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({
+          sql: `DELETE FROM item_quotes WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id = ?)`,
+          args: [orderId],
+        });
+        await db.execute({ sql: `DELETE FROM order_items WHERE order_id = ?`, args: [orderId] });
+        await db.execute({ sql: `DELETE FROM orders WHERE id = ?`, args: [orderId] });
+        return jsonResponse({ success: true });
+      }
+    }
+
+    // 8. POST /api/orders/:orderId/items
+    const orderItemsMatch = path.match(/^\/api\/orders\/(\d+)\/items$/);
+    if (orderItemsMatch && method === 'POST') {
+      const orderId = orderItemsMatch[1];
+      const { gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
+      const result = await db.execute({
+        sql: `INSERT INTO order_items (order_id, gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price)
+              VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+        args: [
+          orderId,
+          gl_product_id ? Number(gl_product_id) : null,
+          product_name,
+          specifications || '',
+          Number(required_qty) || 0,
+          unit || 'MT',
+          Number(buyer_target_price) || 0,
+        ],
+      });
+      return jsonResponse(result.rows[0]);
+    }
+
+    // 9. GET /api/orders/:orderId/export
+    const exportMatch = path.match(/^\/api\/orders\/(\d+)\/export$/);
+    if (exportMatch && method === 'GET') {
+      const orderId = exportMatch[1];
+      const mode = url.searchParams.get('mode') === 'awarded' ? 'awarded' : 'all';
+
+      const orderRes = await db.execute({
+        sql: `SELECT o.*, b.company_name AS buyer_name, b.contact_person AS default_buyer_contact,
+                     b.phone_whatsapp AS buyer_phone, b.email AS buyer_email, b.destination_port
+              FROM orders o
+              JOIN buyers b ON o.buyer_id = b.id
+              WHERE o.id = ?`,
+        args: [orderId],
+      });
+
+      if (orderRes.rows.length === 0) {
+        return new Response('Order not found', { status: 404 });
+      }
+      const order = orderRes.rows[0];
+      const buyerContact = order.buyer_contact || order.default_buyer_contact || '';
+
+      const itemsRes = await db.execute({
+        sql: `SELECT * FROM order_items WHERE order_id = ? ORDER BY id ASC`,
+        args: [order.id],
+      });
+
+      const quotesRes = await db.execute({
+        sql: `SELECT q.*, s.company_name AS supplier_name, s.contact_person AS supplier_contact,
+                     s.phone_whatsapp AS supplier_phone, s.email AS supplier_email,
+                     s.city_country, s.certifications
+              FROM item_quotes q
+              JOIN suppliers s ON q.supplier_id = s.id
+              WHERE q.order_item_id IN (SELECT id FROM order_items WHERE order_id = ?)
+              ORDER BY q.is_selected DESC, q.quoted_price ASC`,
+        args: [order.id],
+      });
+
+      const quotesByItem = {};
+      for (const q of quotesRes.rows) {
+        if (!quotesByItem[q.order_item_id]) quotesByItem[q.order_item_id] = [];
+        quotesByItem[q.order_item_id].push(q);
+      }
+
+      const headers = [
+        'RFQ / Enquiry Ref', 'Enquiry Status', 'Buyer Company', 'Buyer Contact', 'Buyer Phone',
+        'Enquiry Received Date', 'Enquiry Source', 'Destination Country', 'Destination Port',
+        'Incoterms', 'Currency', 'Payment Terms', 'GL Team', 'Delivery Deadline',
+        'Buyer Documents', 'General Notes', 'Product #', 'Product Name',
+        'Specifications', 'Required Qty', 'Unit', 'Buyer Target Price', 'Awarded?',
+        'Supplier Company', 'Supplier Contact', 'Supplier Phone/WA', 'Supplier Email',
+        'Supplier Location', 'Certifications', 'Supplier Quoted Price', 'Margin %',
+        'Est. Total Profit', 'MOQ', 'MOQ Unit', 'Lead Time (Days)', 'Supplier Status',
+        'Sample AWB', 'PO Number', 'Execution Stage', 'Payment Mode', 'LC / UTR Ref',
+        'QC Status', 'BL / LR Number', 'Shipping Bill #', 'Container / Vehicle #',
+        'ETD', 'ETA', 'Shipping Docs', 'Remarks',
+      ];
+
+      const rows = [headers.map(csvCell).join(',')];
+
+      itemsRes.rows.forEach((item, idx) => {
+        let itemQuotes = quotesByItem[item.id] || [];
+        if (mode === 'awarded') {
+          itemQuotes = itemQuotes.filter((q) => Number(q.is_selected) === 1);
+        }
+
+        if (itemQuotes.length === 0) {
+          rows.push(
+            [
+              order.order_code, order.status, order.buyer_name, buyerContact, order.buyer_phone,
+              order.enquiry_received_date, order.enquiry_source, order.destination_country,
+              order.destination_port, order.incoterms, order.currency, order.payment_terms,
+              order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
+              idx + 1, item.product_name, item.specifications, item.required_qty, item.unit,
+              item.buyer_target_price, mode === 'awarded' ? 'PENDING AWARD' : 'NO SUPPLIER',
+              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+              '', '', '', '', '', '', '', '', '', '', '', '',
+            ].map(csvCell).join(',')
+          );
+        } else {
+          for (const q of itemQuotes) {
+            const target = Number(item.buyer_target_price) || 0;
+            const quote = Number(q.quoted_price) || 0;
+            const qty = Number(item.required_qty) || 0;
+            const marginPct = target > 0 && quote > 0 ? (((target - quote) / target) * 100).toFixed(2) + '%' : '';
+            const totalProfit = target > 0 && quote > 0 && qty > 0 ? ((target - quote) * qty).toFixed(2) : '';
+
+            rows.push(
+              [
+                order.order_code, order.status, order.buyer_name, buyerContact, order.buyer_phone,
+                order.enquiry_received_date, order.enquiry_source, order.destination_country,
+                order.destination_port, order.incoterms, order.currency, order.payment_terms,
+                order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
+                idx + 1, item.product_name, item.specifications, item.required_qty, item.unit,
+                item.buyer_target_price, Number(q.is_selected) === 1 ? 'YES - AWARDED' : 'No',
+                q.supplier_name, q.supplier_contact, q.supplier_phone, q.supplier_email,
+                q.city_country, q.certifications, q.quoted_price, marginPct, totalProfit,
+                q.moq, q.moq_unit || item.unit, q.lead_time_days, q.status, q.sample_awb,
+                q.po_number, q.execution_stage, q.payment_mode || order.payment_terms, q.payment_ref,
+                q.qc_status, q.bl_number, q.shipping_bill_no, q.container_no,
+                q.etd, q.eta, q.shipping_docs, q.remarks,
+              ].map(csvCell).join(',')
+            );
+          }
+        }
+      });
+
+      const safeCode = order.order_code.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const filename = `${safeCode}_${mode === 'awarded' ? 'Awarded_Summary' : 'Full_Sourcing_Tracker'}.csv`;
+
+      return new Response('\uFEFF' + rows.join('\r\n'), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+        },
+      });
+    }
+
+    // 10. PUT & DELETE /api/items/:itemId
+    const itemMatch = path.match(/^\/api\/items\/(\d+)$/);
+    if (itemMatch) {
+      const itemId = itemMatch[1];
+      if (method === 'PUT') {
+        const { gl_product_id, product_name, specifications, required_qty, unit, buyer_target_price } = await request.json();
+        await db.execute({
+          sql: `UPDATE order_items
+                SET gl_product_id = ?, product_name = ?, specifications = ?, required_qty = ?, unit = ?, buyer_target_price = ?
+                WHERE id = ?`,
+          args: [
+            gl_product_id ? Number(gl_product_id) : null,
+            product_name,
+            specifications || '',
+            Number(required_qty) || 0,
+            unit || 'MT',
+            Number(buyer_target_price) || 0,
+            itemId,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: `DELETE FROM order_items WHERE id = ?`, args: [itemId] });
+        return jsonResponse({ success: true });
+      }
+    }
+
+    // 11. POST /api/items/:itemId/quotes
+    const itemQuotesMatch = path.match(/^\/api\/items\/(\d+)\/quotes$/);
+    if (itemQuotesMatch && method === 'POST') {
+      const itemId = itemQuotesMatch[1];
+      const { supplier_id, quoted_price, moq, moq_unit, lead_time_days, status, sample_awb, remarks } = await request.json();
+      const result = await db.execute({
+        sql: `INSERT INTO item_quotes (order_item_id, supplier_id, quoted_price, moq, moq_unit, lead_time_days, status, sample_awb, remarks)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+        args: [
+          itemId,
+          supplier_id,
+          Number(quoted_price) || 0,
+          Number(moq) || 0,
+          moq_unit || 'KG',
+          Number(lead_time_days) || 0,
+          status || 'RFQ Sent',
+          sample_awb || '',
+          remarks || '',
+        ],
+      });
+      return jsonResponse(result.rows[0]);
+    }
+
+    // 12. PUT & DELETE /api/quotes/:quoteId
+    const quoteMatch = path.match(/^\/api\/quotes\/(\d+)$/);
+    if (quoteMatch) {
+      const quoteId = quoteMatch[1];
+      if (method === 'PUT') {
+        const {
+          quoted_price,
+          moq,
+          moq_unit,
+          lead_time_days,
+          status,
+          sample_awb,
+          remarks,
+          is_selected,
+          po_number,
+          payment_mode,
+          payment_ref,
+          qc_status,
+          bl_number,
+          shipping_bill_no,
+          container_no,
+          etd,
+          eta,
+          shipping_docs,
+          execution_stage,
+        } = await request.json();
+
+        await db.execute({
+          sql: `UPDATE item_quotes
+                SET quoted_price = ?, moq = ?, moq_unit = ?, lead_time_days = ?, status = ?,
+                    sample_awb = ?, remarks = ?, is_selected = ?,
+                    po_number = ?, payment_mode = ?, payment_ref = ?, qc_status = ?,
+                    bl_number = ?, shipping_bill_no = ?, container_no = ?,
+                    etd = ?, eta = ?, shipping_docs = ?, execution_stage = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?`,
+          args: [
+            Number(quoted_price) || 0,
+            Number(moq) || 0,
+            moq_unit || 'KG',
+            Number(lead_time_days) || 0,
+            status,
+            sample_awb || '',
+            remarks || '',
+            is_selected ? 1 : 0,
+            po_number || '',
+            payment_mode || '',
+            payment_ref || '',
+            qc_status || 'Pending QC',
+            bl_number || '',
+            shipping_bill_no || '',
+            container_no || '',
+            etd || '',
+            eta || '',
+            shipping_docs || '',
+            execution_stage || 'PO Issued',
+            quoteId,
+          ],
+        });
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({ sql: `DELETE FROM item_quotes WHERE id = ?`, args: [quoteId] });
+        return jsonResponse({ success: true });
+      }
+    }
+
+    return jsonResponse({ error: 'API route not found' }, 404);
+  } catch (err) {
+    return jsonResponse({ error: err.message }, 500);
+  }
+}
