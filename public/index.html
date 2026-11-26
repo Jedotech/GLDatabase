@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GLDatabase — GL Products, Buyer Enquiries, Suppliers & Ledgers</title>
+  <title>GLDatabase — Product, Buyer, Supplier, Buyer Enquiries &amp; Order Processing</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
     <div class="flex items-center gap-5 flex-wrap">
       <div>
         <h1 class="text-xl font-bold tracking-tight">GLDatabase Sourcing Desk</h1>
-        <p class="text-xs text-slate-400">GL Products &rarr; Buyer Enquiry/Order &rarr; Quotes &rarr; Award &rarr; Ledger &rarr; Logistics</p>
+        <p class="text-xs text-slate-400">Product &rarr; Buyer &rarr; Supplier &rarr; Buyer Enquiries &rarr; Order Processing</p>
       </div>
 
       <!-- Navigation Tabs -->
@@ -22,43 +22,33 @@
         <button @click="activeTab = 'glProducts'"
                 :class="activeTab === 'glProducts' ? 'bg-teal-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          GL Products (<span x-text="glProducts.length"></span>)
-        </button>
-        <button @click="activeTab = 'orders'"
-                :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
-                class="px-3.5 py-1.5 rounded-md transition">
-          Buyer Enquiry/Order (<span x-text="orders.length"></span>)
+          Product (<span x-text="glProducts.length"></span>)
         </button>
         <button @click="activeTab = 'buyers'"
                 :class="activeTab === 'buyers' ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Buyers (<span x-text="buyers.length"></span>)
+          Buyer (<span x-text="buyers.length"></span>)
         </button>
         <button @click="activeTab = 'suppliers'"
                 :class="activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Suppliers (<span x-text="activeSuppliersCount"></span>)
+          Supplier (<span x-text="activeSuppliersCount"></span>)
         </button>
-        <button @click="activeTab = 'buyerLedger'"
-                :class="activeTab === 'buyerLedger' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+        <button @click="activeTab = 'orders'"
+                :class="activeTab === 'orders' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Buyer Ledger (<span x-text="buyerLedger.length"></span>)
+          Buyer Enquiries (<span x-text="orders.length"></span>)
         </button>
-        <button @click="activeTab = 'supplierLedger'"
-                :class="activeTab === 'supplierLedger' ? 'bg-amber-600 text-white shadow' : 'text-slate-300 hover:text-white'"
+        <button @click="activeTab = 'orderProcessing'"
+                :class="activeTab === 'orderProcessing' ? 'bg-purple-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Supplier Ledger (<span x-text="supplierLedger.length"></span>)
-        </button>
-        <button @click="activeTab = 'logistics'"
-                :class="activeTab === 'logistics' ? 'bg-cyan-600 text-white shadow' : 'text-slate-300 hover:text-white'"
-                class="px-3.5 py-1.5 rounded-md transition">
-          Logistics (<span x-text="logistics.length"></span>)
+          Order Processing (<span x-text="awardedQuotesCount"></span>)
         </button>
       </nav>
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add GL Product</button>
+      <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Product</button>
       <button @click="openNewOrderModal()" class="bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 rounded text-xs font-semibold shadow-sm">+ New Buyer Enquiry</button>
       <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded text-xs font-semibold shadow-sm">+ Add Buyer</button>
       <button @click="openSupplierModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-xs font-medium">+ Add Supplier</button>
@@ -67,7 +57,7 @@
 
   <main class="max-w-7xl mx-auto p-6 space-y-6">
 
-    <!-- ==================== STEP 1: GL PRODUCTS MASTER ==================== -->
+    <!-- ==================== STEP 1: PRODUCT MASTER ==================== -->
     <div x-show="activeTab === 'glProducts'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div class="flex-1 min-w-[260px]">
@@ -76,14 +66,14 @@
                  class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-teal-500" />
         </div>
         <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
-          + Add GL Product
+          + Add Product
         </button>
       </div>
 
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
           <div>
-            <h2 class="font-bold text-slate-800 text-base">GL Products (<span x-text="filteredGlProducts.length"></span>)</h2>
+            <h2 class="font-bold text-slate-800 text-base">Product (<span x-text="filteredGlProducts.length"></span>)</h2>
             <p class="text-xs text-slate-500">Each product is entered once here and selected when creating buyer enquiries or linking suppliers.</p>
           </div>
         </div>
@@ -105,7 +95,7 @@
               <template x-if="filteredGlProducts.length === 0">
                 <tr>
                   <td colspan="8" class="p-8 text-center text-slate-400">
-                    No GL Products found. Click <strong>+ Add GL Product</strong> to add one (e.g. <code>GL-TEJ-SL</code> — Red Chilli – Teja Stemless).
+                    No Products found. Click <strong>+ Add Product</strong> to add one (e.g. <code>GL-TEJ-SL</code> — Red Chilli – Teja Stemless).
                   </td>
                 </tr>
               </template>
@@ -139,13 +129,199 @@
       </div>
     </div>
 
-    <!-- ==================== STEP 2: BUYER ENQUIRY / ORDER ==================== -->
+    <!-- ==================== BUYERS PAGE ==================== -->
+    <div x-show="activeTab === 'buyers'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex-1 min-w-[260px]">
+          <input type="text" x-model="buyerSearch"
+                 placeholder="Search Buyers by company name, contact person, phone, email, or destination port..."
+                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500" />
+        </div>
+        <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+          + Add Buyer
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="font-bold text-slate-800 text-base">Buyers List (<span x-text="filteredBuyers.length"></span>)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3.5">Buyer Company</th>
+                <th class="p-3.5">Contact Person</th>
+                <th class="p-3.5">Phone / WhatsApp</th>
+                <th class="p-3.5">Email</th>
+                <th class="p-3.5">Destination Port</th>
+                <th class="p-3.5">Wanted Products (From Enquiries)</th>
+                <th class="p-3.5">Notes</th>
+                <th class="p-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredBuyers.length === 0">
+                <tr>
+                  <td colspan="8" class="p-8 text-center text-slate-400">
+                    No buyers found. Click <strong>+ Add Buyer</strong> to add your first buyer.
+                  </td>
+                </tr>
+              </template>
+              <template x-for="b in filteredBuyers" :key="b.id">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="b.company_name"></td>
+                  <td class="p-3.5 text-slate-700" x-text="b.contact_person || '-'"></td>
+                  <td class="p-3.5">
+                    <span x-text="b.phone_whatsapp || '-'"></span>
+                    <a x-show="b.phone_whatsapp" :href="waLink(b.phone_whatsapp)" target="_blank"
+                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                  </td>
+                  <td class="p-3.5 text-slate-600" x-text="b.email || '-'"></td>
+                  <td class="p-3.5 text-slate-600" x-text="b.destination_port || '-'"></td>
+                  <td class="p-3.5">
+                    <span class="text-slate-700 font-medium" x-text="buyerProductsSummary(b.id)"></span>
+                  </td>
+                  <td class="p-3.5 text-slate-500" x-text="b.notes || '-'"></td>
+                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
+                    <button @click="openBuyerModal(b)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SUPPLIERS TAB ==================== -->
+    <div x-show="activeTab === 'suppliers'" class="space-y-5" style="display:none;">
+      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex-1 min-w-[260px] flex flex-wrap items-center gap-3">
+          <input type="text" x-model="supplierSearch"
+                 placeholder="Search by Supplier ID, Name, Contact, Role, Facility Type, Address, or Linked Products..."
+                 class="flex-1 min-w-[220px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
+          <select x-model="supplierStatusFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
+            <option value="ALL">All Statuses</option>
+            <option>Under Verification</option>
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+          <label class="flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer select-none">
+            <input type="checkbox" x-model="showArchivedSuppliers" class="accent-emerald-600" />
+            Show Archived (<span x-text="archivedSuppliersCount"></span>)
+          </label>
+        </div>
+        <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
+          + Add Supplier
+        </button>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="font-bold text-slate-800 text-base">Suppliers List (<span x-text="filteredSuppliers.length"></span>)</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                <th class="p-3">Supplier ID</th>
+                <th class="p-3">Supplier Name</th>
+                <th class="p-3">Contact Name</th>
+                <th class="p-3">Role/Designation</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">WhatsApp / Contact Number</th>
+                <th class="p-3">Facility Type</th>
+                <th class="p-3">Facility Address</th>
+                <th class="p-3">Products</th>
+                <th class="p-3">Supplier Status</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="filteredSuppliers.length === 0">
+                <tr>
+                  <td colspan="11" class="p-8 text-center text-slate-400">
+                    No suppliers found. Click <strong>+ Add Supplier</strong> to add your first supplier.
+                  </td>
+                </tr>
+              </template>
+              <template x-for="s in filteredSuppliers" :key="s.id">
+                <tr class="hover:bg-slate-50" :class="s.is_archived ? 'opacity-60 bg-slate-50' : ''">
+                  <td class="p-3 align-top font-mono font-bold text-emerald-800 whitespace-nowrap" x-text="s.supplier_code"></td>
+                  <td class="p-3 align-top">
+                    <div class="font-bold text-slate-900 text-sm" x-text="s.company_name"></div>
+                    <span x-show="s.is_archived" class="inline-block mt-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.5 rounded">Archived</span>
+                  </td>
+                  <td class="p-3 align-top text-slate-800 font-medium" x-text="s.contact_person || '-'"></td>
+                  <td class="p-3 align-top text-slate-600" x-text="s.role_designation || '-'"></td>
+                  <td class="p-3 align-top">
+                    <template x-if="s.email">
+                      <a :href="`mailto:${s.email}`" class="text-blue-600 hover:underline font-medium" x-text="s.email"></a>
+                    </template>
+                    <template x-if="!s.email">
+                      <span class="text-slate-400">-</span>
+                    </template>
+                  </td>
+                  <td class="p-3 align-top whitespace-nowrap">
+                    <template x-if="s.phone_whatsapp">
+                      <a :href="waLink(s.phone_whatsapp)" target="_blank" rel="noopener noreferrer"
+                         class="inline-flex items-center gap-1.5 text-emerald-700 hover:underline font-semibold">
+                        <span x-text="s.phone_whatsapp"></span>
+                        <span class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-bold">WA</span>
+                      </a>
+                    </template>
+                    <template x-if="!s.phone_whatsapp">
+                      <span class="text-slate-400">-</span>
+                    </template>
+                  </td>
+                  <td class="p-3 align-top text-slate-700 whitespace-nowrap" x-text="s.facility_type || '-'"></td>
+                  <td class="p-3 align-top text-slate-600 max-w-[180px]" x-text="s.city_country || '-'"></td>
+                  <td class="p-3 align-top max-w-[200px]">
+                    <template x-if="!s.linked_products || s.linked_products.length === 0">
+                      <span class="text-slate-400">-</span>
+                    </template>
+                    <template x-if="s.linked_products && s.linked_products.length > 0">
+                      <div class="flex flex-wrap gap-1 items-center">
+                        <template x-for="lp in s.linked_products.slice(0, 2)" :key="lp.product_id + '-' + lp.product_name">
+                          <span class="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded text-[11px] font-medium"
+                                x-text="lp.product_name"></span>
+                        </template>
+                        <span x-show="s.linked_products.length > 2"
+                              class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                              x-text="`+${s.linked_products.length - 2} more`"></span>
+                      </div>
+                    </template>
+                  </td>
+                  <td class="p-3 align-top whitespace-nowrap">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          :class="supplierStatusBadge(s.supplier_status)"
+                          x-text="s.supplier_status || 'Under Verification'"></span>
+                  </td>
+                  <td class="p-3 align-top text-right space-x-2 whitespace-nowrap">
+                    <button @click="openViewSupplierModal(s)" class="text-slate-700 hover:underline font-semibold">View</button>
+                    <button @click="openSupplierModal(s)" class="text-blue-600 hover:underline font-semibold">Edit</button>
+                    <button @click="toggleArchiveSupplier(s)"
+                            :class="s.is_archived ? 'text-emerald-600' : 'text-amber-600'"
+                            class="hover:underline font-semibold"
+                            x-text="s.is_archived ? 'Restore' : 'Archive'"></button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== BUYER ENQUIRIES ==================== -->
     <div x-show="activeTab === 'orders'" class="space-y-6" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3 flex-1 min-w-[260px]">
-          <label class="text-sm font-semibold text-slate-600 whitespace-nowrap">Buyer Enquiry / Order:</label>
+          <label class="text-sm font-semibold text-slate-600 whitespace-nowrap">Buyer Enquiries:</label>
           <select x-model="selectedOrderId" class="border border-slate-300 rounded px-3 py-2 text-sm w-full max-w-md bg-slate-50 font-medium">
-            <option value="">-- Select a Buyer Enquiry / Order --</option>
+            <option value="">-- Select a Buyer Enquiry --</option>
             <template x-for="o in orders" :key="o.id">
               <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}${o.destination_country ? ' (' + o.destination_country + ')' : ''} (${o.items.length} products)`"></option>
             </template>
@@ -158,10 +334,10 @@
 
       <template x-if="!activeOrder">
         <div class="bg-white rounded-lg border border-dashed border-slate-300 p-12 text-center space-y-3">
-          <p class="text-lg font-semibold text-slate-700">No Buyer Enquiry / Order Selected</p>
-          <p class="text-sm text-slate-500">Add GL Products and a Buyer first, then create a Buyer Enquiry/Order.</p>
+          <p class="text-lg font-semibold text-slate-700">No Buyer Enquiry Selected</p>
+          <p class="text-sm text-slate-500">Add Products and a Buyer first, then create a Buyer Enquiry.</p>
           <div class="pt-2 flex justify-center gap-3 flex-wrap">
-            <button @click="openGlProductModal()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm">1. Add GL Product</button>
+            <button @click="openGlProductModal()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm">1. Add Product</button>
             <button @click="openBuyerModal()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">2. Add Buyer</button>
             <button @click="openNewOrderModal()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm">3. New Buyer Enquiry</button>
           </div>
@@ -364,377 +540,67 @@
       </template>
     </div>
 
-    <!-- ==================== BUYERS PAGE ==================== -->
-    <div x-show="activeTab === 'buyers'" class="space-y-5" style="display:none;">
+    <!-- ==================== ORDER PROCESSING ==================== -->
+    <div x-show="activeTab === 'orderProcessing'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex-1 min-w-[260px]">
-          <input type="text" x-model="buyerSearch"
-                 placeholder="Search Buyers by company name, contact person, phone, email, or destination port..."
-                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-500" />
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Order Processing — Awarded &amp; PO Issued Lines (<span x-text="awardedOrderRows.length"></span>)</h2>
+          <p class="text-xs text-slate-500">Tracks all awarded buyer enquiry items and supplier PO statuses across enquiries.</p>
         </div>
-        <button @click="openBuyerModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
-          + Add Buyer
-        </button>
       </div>
 
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-          <h2 class="font-bold text-slate-800 text-base">Buyers List (<span x-text="filteredBuyers.length"></span>)</h2>
-        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Buyer Company</th>
-                <th class="p-3.5">Contact Person</th>
-                <th class="p-3.5">Phone / WhatsApp</th>
-                <th class="p-3.5">Email</th>
-                <th class="p-3.5">Destination Port</th>
-                <th class="p-3.5">Wanted Products (From Enquiries)</th>
-                <th class="p-3.5">Notes</th>
-                <th class="p-3.5 text-right">Actions</th>
+                <th class="p-3.5">Enquiry Ref</th>
+                <th class="p-3.5">Buyer &amp; Destination</th>
+                <th class="p-3.5">Product &amp; Qty</th>
+                <th class="p-3.5">Awarded Supplier</th>
+                <th class="p-3.5">Quoted Price</th>
+                <th class="p-3.5">Lead Time</th>
+                <th class="p-3.5">Stage / Status</th>
+                <th class="p-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <template x-if="filteredBuyers.length === 0">
+              <template x-if="awardedOrderRows.length === 0">
                 <tr>
                   <td colspan="8" class="p-8 text-center text-slate-400">
-                    No buyers found. Click <strong>+ Add Buyer</strong> to add your first buyer.
+                    No awarded orders yet. Tick <strong>Award</strong> on a supplier quote inside <strong>Buyer Enquiries</strong> to move it into Order Processing.
                   </td>
                 </tr>
               </template>
-              <template x-for="b in filteredBuyers" :key="b.id">
+              <template x-for="row in awardedOrderRows" :key="row.quote.id">
                 <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="b.company_name"></td>
-                  <td class="p-3.5 text-slate-700" x-text="b.contact_person || '-'"></td>
+                  <td class="p-3.5 font-bold text-blue-800" x-text="row.order.order_code"></td>
                   <td class="p-3.5">
-                    <span x-text="b.phone_whatsapp || '-'"></span>
-                    <a x-show="b.phone_whatsapp" :href="waLink(b.phone_whatsapp)" target="_blank"
-                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
-                  </td>
-                  <td class="p-3.5 text-slate-600" x-text="b.email || '-'"></td>
-                  <td class="p-3.5 text-slate-600" x-text="b.destination_port || '-'"></td>
-                  <td class="p-3.5">
-                    <span class="text-slate-700 font-medium" x-text="buyerProductsSummary(b.id)"></span>
-                  </td>
-                  <td class="p-3.5 text-slate-500" x-text="b.notes || '-'"></td>
-                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
-                    <button @click="openBuyerModal(b)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteBuyer(b)" class="text-red-600 hover:underline font-semibold">Delete</button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== SUPPLIERS TAB ==================== -->
-    <div x-show="activeTab === 'suppliers'" class="space-y-5" style="display:none;">
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex-1 min-w-[260px] flex flex-wrap items-center gap-3">
-          <input type="text" x-model="supplierSearch"
-                 placeholder="Search by Supplier ID, Name, Contact, Role, Facility Type, Address, or Linked Products..."
-                 class="flex-1 min-w-[220px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
-          <select x-model="supplierStatusFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
-            <option value="ALL">All Statuses</option>
-            <option>Under Verification</option>
-            <option>Active</option>
-            <option>Inactive</option>
-          </select>
-          <label class="flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer select-none">
-            <input type="checkbox" x-model="showArchivedSuppliers" class="accent-emerald-600" />
-            Show Archived (<span x-text="archivedSuppliersCount"></span>)
-          </label>
-        </div>
-        <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
-          + Add Supplier
-        </button>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-          <h2 class="font-bold text-slate-800 text-base">Suppliers List (<span x-text="filteredSuppliers.length"></span>)</h2>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3">Supplier ID</th>
-                <th class="p-3">Supplier Name</th>
-                <th class="p-3">Contact Name</th>
-                <th class="p-3">Role/Designation</th>
-                <th class="p-3">Email</th>
-                <th class="p-3">WhatsApp / Contact Number</th>
-                <th class="p-3">Facility Type</th>
-                <th class="p-3">Facility Address</th>
-                <th class="p-3">Products</th>
-                <th class="p-3">Supplier Status</th>
-                <th class="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <template x-if="filteredSuppliers.length === 0">
-                <tr>
-                  <td colspan="11" class="p-8 text-center text-slate-400">
-                    No suppliers found. Click <strong>+ Add Supplier</strong> to add your first supplier.
-                  </td>
-                </tr>
-              </template>
-              <template x-for="s in filteredSuppliers" :key="s.id">
-                <tr class="hover:bg-slate-50" :class="s.is_archived ? 'opacity-60 bg-slate-50' : ''">
-                  <td class="p-3 align-top font-mono font-bold text-emerald-800 whitespace-nowrap" x-text="s.supplier_code"></td>
-                  <td class="p-3 align-top">
-                    <div class="font-bold text-slate-900 text-sm" x-text="s.company_name"></div>
-                    <span x-show="s.is_archived" class="inline-block mt-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.5 rounded">Archived</span>
-                  </td>
-                  <td class="p-3 align-top text-slate-800 font-medium" x-text="s.contact_person || '-'"></td>
-                  <td class="p-3 align-top text-slate-600" x-text="s.role_designation || '-'"></td>
-                  <td class="p-3 align-top">
-                    <template x-if="s.email">
-                      <a :href="`mailto:${s.email}`" class="text-blue-600 hover:underline font-medium" x-text="s.email"></a>
-                    </template>
-                    <template x-if="!s.email">
-                      <span class="text-slate-400">-</span>
-                    </template>
-                  </td>
-                  <td class="p-3 align-top whitespace-nowrap">
-                    <template x-if="s.phone_whatsapp">
-                      <a :href="waLink(s.phone_whatsapp)" target="_blank" rel="noopener noreferrer"
-                         class="inline-flex items-center gap-1.5 text-emerald-700 hover:underline font-semibold">
-                        <span x-text="s.phone_whatsapp"></span>
-                        <span class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-bold">WA</span>
-                      </a>
-                    </template>
-                    <template x-if="!s.phone_whatsapp">
-                      <span class="text-slate-400">-</span>
-                    </template>
-                  </td>
-                  <td class="p-3 align-top text-slate-700 whitespace-nowrap" x-text="s.facility_type || '-'"></td>
-                  <td class="p-3 align-top text-slate-600 max-w-[180px]" x-text="s.city_country || '-'"></td>
-                  <td class="p-3 align-top max-w-[200px]">
-                    <template x-if="!s.linked_products || s.linked_products.length === 0">
-                      <span class="text-slate-400">-</span>
-                    </template>
-                    <template x-if="s.linked_products && s.linked_products.length > 0">
-                      <div class="flex flex-wrap gap-1 items-center">
-                        <template x-for="lp in s.linked_products.slice(0, 2)" :key="lp.product_id + '-' + lp.product_name">
-                          <span class="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded text-[11px] font-medium"
-                                x-text="lp.product_name"></span>
-                        </template>
-                        <span x-show="s.linked_products.length > 2"
-                              class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                              x-text="`+${s.linked_products.length - 2} more`"></span>
-                      </div>
-                    </template>
-                  </td>
-                  <td class="p-3 align-top whitespace-nowrap">
-                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                          :class="supplierStatusBadge(s.supplier_status)"
-                          x-text="s.supplier_status || 'Under Verification'"></span>
-                  </td>
-                  <td class="p-3 align-top text-right space-x-2 whitespace-nowrap">
-                    <button @click="openViewSupplierModal(s)" class="text-slate-700 hover:underline font-semibold">View</button>
-                    <button @click="openSupplierModal(s)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="toggleArchiveSupplier(s)"
-                            :class="s.is_archived ? 'text-emerald-600' : 'text-amber-600'"
-                            class="hover:underline font-semibold"
-                            x-text="s.is_archived ? 'Restore' : 'Archive'"></button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== BUYER LEDGER ==================== -->
-    <div x-show="activeTab === 'buyerLedger'" class="space-y-5" style="display:none;">
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="text-base font-bold text-slate-900">Buyer Payment &amp; Invoice Ledger</h2>
-          <p class="text-xs text-slate-500">Track commercial invoices, buyer remittances, due dates, and receivable balances.</p>
-        </div>
-        <button @click="openBuyerLedgerModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
-          + Add Buyer Invoice
-        </button>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Invoice #</th>
-                <th class="p-3.5">Buyer &amp; Order</th>
-                <th class="p-3.5">Invoice Amount</th>
-                <th class="p-3.5">Received</th>
-                <th class="p-3.5">Balance Due</th>
-                <th class="p-3.5">Due Date</th>
-                <th class="p-3.5">Status</th>
-                <th class="p-3.5">Remarks</th>
-                <th class="p-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <template x-if="buyerLedger.length === 0">
-                <tr><td colspan="9" class="p-8 text-center text-slate-400">No buyer invoices recorded yet.</td></tr>
-              </template>
-              <template x-for="bl in buyerLedger" :key="bl.id">
-                <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900" x-text="bl.invoice_no"></td>
-                  <td class="p-3.5">
-                    <div class="font-semibold text-slate-800" x-text="bl.buyer_name"></div>
-                    <div class="text-[11px] text-slate-400" x-text="bl.order_code || 'General'"></div>
-                  </td>
-                  <td class="p-3.5 font-semibold" x-text="`${bl.currency} ${Number(bl.invoice_amount).toFixed(2)}`"></td>
-                  <td class="p-3.5 text-emerald-700 font-semibold" x-text="`${bl.currency} ${Number(bl.amount_received).toFixed(2)}`"></td>
-                  <td class="p-3.5 font-bold"
-                      :class="(Number(bl.invoice_amount) - Number(bl.amount_received)) > 0 ? 'text-red-600' : 'text-emerald-700'"
-                      x-text="`${bl.currency} ${(Number(bl.invoice_amount) - Number(bl.amount_received)).toFixed(2)}`"></td>
-                  <td class="p-3.5 text-slate-600" x-text="bl.due_date || '-'"></td>
-                  <td class="p-3.5">
-                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                          :class="bl.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : (bl.payment_status === 'Overdue' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800')"
-                          x-text="bl.payment_status"></span>
-                  </td>
-                  <td class="p-3.5 text-slate-500" x-text="bl.remarks || '-'"></td>
-                  <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
-                    <button @click="openBuyerLedgerModal(bl)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteBuyerLedger(bl.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== SUPPLIER LEDGER ==================== -->
-    <div x-show="activeTab === 'supplierLedger'" class="space-y-5" style="display:none;">
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="text-base font-bold text-slate-900">Supplier Disbursement &amp; QC Ledger</h2>
-          <p class="text-xs text-slate-500">Track supplier purchase orders, advances/payments released, QC status, and balances.</p>
-        </div>
-        <button @click="openSupplierLedgerModal()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
-          + Add Supplier PO Entry
-        </button>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">PO Ref</th>
-                <th class="p-3.5">Supplier &amp; Order</th>
-                <th class="p-3.5">Total Amount</th>
-                <th class="p-3.5">Paid / Advance</th>
-                <th class="p-3.5">Balance Due</th>
-                <th class="p-3.5">QC Status</th>
-                <th class="p-3.5">Payment Status</th>
-                <th class="p-3.5">Remarks</th>
-                <th class="p-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <template x-if="supplierLedger.length === 0">
-                <tr><td colspan="9" class="p-8 text-center text-slate-400">No supplier ledger entries recorded yet.</td></tr>
-              </template>
-              <template x-for="sl in supplierLedger" :key="sl.id">
-                <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900" x-text="sl.po_ref"></td>
-                  <td class="p-3.5">
-                    <div class="font-semibold text-slate-800" x-text="sl.supplier_name"></div>
-                    <div class="text-[11px] text-slate-400" x-text="sl.order_code || 'General'"></div>
-                  </td>
-                  <td class="p-3.5 font-semibold" x-text="`${sl.currency} ${Number(sl.total_amount).toFixed(2)}`"></td>
-                  <td class="p-3.5 text-emerald-700 font-semibold" x-text="`${sl.currency} ${Number(sl.amount_paid).toFixed(2)}`"></td>
-                  <td class="p-3.5 font-bold"
-                      :class="(Number(sl.total_amount) - Number(sl.amount_paid)) > 0 ? 'text-red-600' : 'text-emerald-700'"
-                      x-text="`${sl.currency} ${(Number(sl.total_amount) - Number(sl.amount_paid)).toFixed(2)}`"></td>
-                  <td class="p-3.5 font-medium text-slate-700" x-text="sl.qc_status"></td>
-                  <td class="p-3.5">
-                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                          :class="sl.payment_status === 'Settled' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
-                          x-text="sl.payment_status"></span>
-                  </td>
-                  <td class="p-3.5 text-slate-500" x-text="sl.remarks || '-'"></td>
-                  <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
-                    <button @click="openSupplierLedgerModal(sl)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteSupplierLedger(sl.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== LOGISTICS TRACKER ==================== -->
-    <div x-show="activeTab === 'logistics'" class="space-y-5" style="display:none;">
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="text-base font-bold text-slate-900">Global Logistics &amp; Shipment Tracker</h2>
-          <p class="text-xs text-slate-500">Track container/AWB numbers, shipping bills, ETD/ETA dates, and customs/delivery milestones.</p>
-        </div>
-        <button @click="openLogisticsModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
-          + Add Shipment
-        </button>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Shipment Ref</th>
-                <th class="p-3.5">Buyer &amp; Order</th>
-                <th class="p-3.5">Route &amp; Terms</th>
-                <th class="p-3.5">Container / AWB &amp; SB #</th>
-                <th class="p-3.5">ETD / ETA</th>
-                <th class="p-3.5">Stage</th>
-                <th class="p-3.5">Remarks</th>
-                <th class="p-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              <template x-if="logistics.length === 0">
-                <tr><td colspan="8" class="p-8 text-center text-slate-400">No shipments tracked yet.</td></tr>
-              </template>
-              <template x-for="ls in logistics" :key="ls.id">
-                <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900" x-text="ls.shipment_ref"></td>
-                  <td class="p-3.5">
-                    <div class="font-semibold text-slate-800" x-text="ls.buyer_name || '-'"></div>
-                    <div class="text-[11px] text-slate-400" x-text="ls.order_code || '-'"></div>
+                    <div class="font-semibold text-slate-900" x-text="row.order.buyer_name"></div>
+                    <div class="text-[11px] text-slate-500" x-text="`${row.order.destination_country || '-'} (${row.order.incoterms})`"></div>
                   </td>
                   <td class="p-3.5">
-                    <div class="font-medium text-slate-800" x-text="`${ls.origin_port || '?'} &rarr; ${ls.destination_port || '?'}`"></div>
-                    <div class="text-[11px] text-slate-400" x-text="ls.incoterms"></div>
+                    <div class="font-bold text-slate-800" x-text="row.item.product_name"></div>
+                    <div class="text-[11px] text-slate-500" x-text="`${row.item.required_qty} ${row.item.unit}`"></div>
                   </td>
                   <td class="p-3.5">
-                    <div class="font-semibold text-slate-800" x-text="ls.container_awb || '-'"></div>
-                    <div class="text-[11px] text-slate-500" x-text="ls.shipping_bill_no ? `SB: ${ls.shipping_bill_no}` : ''"></div>
+                    <div class="font-semibold text-slate-800" x-text="row.quote.supplier_name"></div>
+                    <div class="text-[11px] text-slate-500" x-text="row.quote.supplier_phone || '-'"></div>
                   </td>
-                  <td class="p-3.5 text-slate-600">
-                    <div>ETD: <span x-text="ls.etd || '-'"></span></div>
-                    <div>ETA: <span x-text="ls.eta || '-'"></span></div>
-                  </td>
+                  <td class="p-3.5 font-semibold text-emerald-700" x-text="`${row.order.currency} ${row.quote.quoted_price} / ${row.item.unit}`"></td>
+                  <td class="p-3.5 text-slate-600" x-text="row.quote.lead_time_days ? `${row.quote.lead_time_days} days` : '-'"></td>
                   <td class="p-3.5">
-                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                          :class="ls.stage === 'Delivered' ? 'bg-emerald-100 text-emerald-800' : (ls.stage === 'In Transit' ? 'bg-cyan-100 text-cyan-800' : 'bg-blue-100 text-blue-800')"
-                          x-text="ls.stage"></span>
+                    <select x-model="row.quote.status" @change="updateQuote(row.quote)"
+                            class="border border-slate-300 rounded px-2 py-1 text-xs font-medium bg-white">
+                      <option>5 - Sample Approved</option>
+                      <option>6 - Awarded / PO Issued</option>
+                      <option>7 - Rejected / Backup</option>
+                    </select>
                   </td>
-                  <td class="p-3.5 text-slate-500" x-text="ls.remarks || '-'"></td>
-                  <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
-                    <button @click="openLogisticsModal(ls)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteLogistics(ls.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                  <td class="p-3.5 text-right whitespace-nowrap">
+                    <button @click="openOrderFromProcessing(row.order.id, row.item.id)" class="text-blue-600 hover:underline font-semibold">
+                      Open Enquiry
+                    </button>
                   </td>
                 </tr>
               </template>
@@ -748,10 +614,10 @@
 
   <!-- ==================== MODALS ==================== -->
 
-  <!-- MODAL 0: ADD / EDIT GL PRODUCT MASTER -->
+  <!-- MODAL 0: ADD / EDIT PRODUCT MASTER -->
   <div x-show="modals.glProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.glProduct.id ? 'Edit GL Product' : 'Add GL Product'"></h3>
+      <h3 class="text-lg font-bold" x-text="forms.glProduct.id ? 'Edit Product' : 'Add Product'"></h3>
       <div class="space-y-3 text-sm">
         <div>
           <label class="text-xs font-semibold text-slate-600">Product ID *</label>
@@ -792,7 +658,7 @@
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="modals.glProduct = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
-        <button @click="saveGlProduct()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm font-semibold">Save GL Product</button>
+        <button @click="saveGlProduct()" class="bg-teal-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Product</button>
       </div>
     </div>
   </div>
@@ -927,9 +793,9 @@
           <input x-model="forms.supplier.city_country" placeholder="Full plant / warehouse / office address" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
 
-        <!-- 9. Multi-Product Picker from GL Products Tab -->
+        <!-- 9. Multi-Product Picker from Product Tab -->
         <div class="md:col-span-2 border-t pt-3 space-y-2">
-          <label class="text-xs font-semibold text-slate-700 block">9. Products (Select from GL Products Tab)</label>
+          <label class="text-xs font-semibold text-slate-700 block">9. Products (Select from Product Tab)</label>
           <div class="flex gap-2">
             <select x-model="selectedProductToLink" class="flex-1 border rounded px-3 py-2 text-xs bg-white">
               <option value="">-- Select Product ID &amp; Product Name --</option>
@@ -961,10 +827,10 @@
     </div>
   </div>
 
-  <!-- MODAL 3: NEW BUYER ENQUIRY / ORDER -->
+  <!-- MODAL 3: NEW BUYER ENQUIRY -->
   <div x-show="modals.order" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
     <div class="bg-white rounded-lg max-w-4xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
-      <h3 class="text-lg font-bold">Create New Buyer Enquiry / Order</h3>
+      <h3 class="text-lg font-bold">Create New Buyer Enquiry</h3>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
         <div>
@@ -1048,11 +914,11 @@
         </div>
       </div>
 
-      <!-- Product Lines Selected from GL Products Master -->
+      <!-- Product Lines Selected from Product Master -->
       <div class="border-t pt-3 space-y-2.5">
         <div class="flex justify-between items-center flex-wrap gap-2">
           <div>
-            <span class="text-sm font-bold">Product Lines (Select from GL Products Master)</span>
+            <span class="text-sm font-bold">Product Lines (Select from Product Master)</span>
             <p class="text-[11px] text-slate-500">Pick a master product to auto-fill product name and origin/HSN details.</p>
           </div>
           <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded font-semibold">+ Add Product Line</button>
@@ -1062,7 +928,7 @@
           <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center text-xs bg-slate-50 p-2.5 rounded border border-slate-200">
             <select x-model="prod.gl_product_id" @change="applyGlProductToRow(prod)"
                     class="md:col-span-3 border rounded px-2 py-1.5 bg-white font-medium">
-              <option value="">-- From GL Products --</option>
+              <option value="">-- From Product --</option>
               <template x-for="gp in glProducts" :key="gp.id">
                 <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
               </template>
@@ -1089,7 +955,7 @@
       <h3 class="text-lg font-bold" x-text="forms.singleProduct.id ? 'Edit Product Line' : 'Add Product to Enquiry'"></h3>
       <div class="space-y-3 text-sm">
         <div>
-          <label class="text-xs font-semibold text-slate-600">Select from GL Products Master</label>
+          <label class="text-xs font-semibold text-slate-600">Select from Product Master</label>
           <select x-model="forms.singleProduct.gl_product_id" @change="applyGlProductToRow(forms.singleProduct)"
                   class="w-full border rounded px-3 py-2 mt-1 bg-white">
             <option value="">-- Optional: Pick Master Product --</option>
@@ -1214,135 +1080,6 @@
     </div>
   </div>
 
-  <!-- MODAL 6: BUYER LEDGER -->
-  <div x-show="modals.buyerLedger" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.buyerLedger.id ? 'Edit Buyer Invoice' : 'Add Buyer Invoice'"></h3>
-      <div class="space-y-3 text-sm">
-        <input x-model="forms.buyerLedger.invoice_no" placeholder="Invoice Number *" class="w-full border rounded px-3 py-2" />
-        <select x-model="forms.buyerLedger.buyer_id" class="w-full border rounded px-3 py-2 bg-white">
-          <option value="">Select Buyer *</option>
-          <template x-for="b in buyers" :key="b.id">
-            <option :value="b.id" x-text="b.company_name"></option>
-          </template>
-        </select>
-        <select x-model="forms.buyerLedger.order_id" class="w-full border rounded px-3 py-2 bg-white">
-          <option value="">Link Enquiry / Order (Optional)</option>
-          <template x-for="o in orders" :key="o.id">
-            <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}`"></option>
-          </template>
-        </select>
-        <div class="grid grid-cols-3 gap-2">
-          <select x-model="forms.buyerLedger.currency" class="border rounded px-2 py-2 bg-white">
-            <option>USD</option><option>INR</option><option>EUR</option><option>AED</option>
-          </select>
-          <input type="number" step="0.01" x-model="forms.buyerLedger.invoice_amount" placeholder="Invoice Amt" class="border rounded px-3 py-2" />
-          <input type="number" step="0.01" x-model="forms.buyerLedger.amount_received" placeholder="Received" class="border rounded px-3 py-2" />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <input type="date" x-model="forms.buyerLedger.due_date" class="border rounded px-3 py-2" />
-          <select x-model="forms.buyerLedger.payment_status" class="border rounded px-3 py-2 bg-white">
-            <option>Unpaid</option><option>Partial</option><option>Paid</option><option>Overdue</option>
-          </select>
-        </div>
-        <input x-model="forms.buyerLedger.remarks" placeholder="Payment reference / remarks" class="w-full border rounded px-3 py-2" />
-      </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button @click="modals.buyerLedger = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
-        <button @click="saveBuyerLedger()" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Invoice</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL 7: SUPPLIER LEDGER -->
-  <div x-show="modals.supplierLedger" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.supplierLedger.id ? 'Edit Supplier PO Entry' : 'Add Supplier PO Entry'"></h3>
-      <div class="space-y-3 text-sm">
-        <input x-model="forms.supplierLedger.po_ref" placeholder="Supplier PO / Bill Ref *" class="w-full border rounded px-3 py-2" />
-        <select x-model="forms.supplierLedger.supplier_id" class="w-full border rounded px-3 py-2 bg-white">
-          <option value="">Select Supplier *</option>
-          <template x-for="s in suppliers" :key="s.id">
-            <option :value="s.id" x-text="s.company_name"></option>
-          </template>
-        </select>
-        <select x-model="forms.supplierLedger.order_id" class="w-full border rounded px-3 py-2 bg-white">
-          <option value="">Link Enquiry / Order (Optional)</option>
-          <template x-for="o in orders" :key="o.id">
-            <option :value="o.id" x-text="`${o.order_code} — ${o.buyer_name}`"></option>
-          </template>
-        </select>
-        <div class="grid grid-cols-3 gap-2">
-          <select x-model="forms.supplierLedger.currency" class="border rounded px-2 py-2 bg-white">
-            <option>INR</option><option>USD</option><option>EUR</option>
-          </select>
-          <input type="number" step="0.01" x-model="forms.supplierLedger.total_amount" placeholder="Total Amt" class="border rounded px-3 py-2" />
-          <input type="number" step="0.01" x-model="forms.supplierLedger.amount_paid" placeholder="Paid Amt" class="border rounded px-3 py-2" />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <select x-model="forms.supplierLedger.qc_status" class="border rounded px-3 py-2 bg-white">
-            <option>Pending QC</option><option>QC Passed</option><option>QC Hold</option>
-          </select>
-          <select x-model="forms.supplierLedger.payment_status" class="border rounded px-3 py-2 bg-white">
-            <option>Pending</option><option>Advance Paid</option><option>Settled</option>
-          </select>
-        </div>
-        <input x-model="forms.supplierLedger.remarks" placeholder="UTR / bank / QC notes" class="w-full border rounded px-3 py-2" />
-      </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button @click="modals.supplierLedger = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
-        <button @click="saveSupplierLedger()" class="bg-amber-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Entry</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL 8: LOGISTICS TRACKER -->
-  <div x-show="modals.logistics" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.logistics.id ? 'Edit Shipment' : 'Add Shipment'"></h3>
-      <div class="space-y-3 text-sm">
-        <input x-model="forms.logistics.shipment_ref" placeholder="Shipment / Booking Ref *" class="w-full border rounded px-3 py-2" />
-        <div class="grid grid-cols-2 gap-2">
-          <select x-model="forms.logistics.buyer_id" class="border rounded px-3 py-2 bg-white">
-            <option value="">Select Buyer</option>
-            <template x-for="b in buyers" :key="b.id">
-              <option :value="b.id" x-text="b.company_name"></option>
-            </template>
-          </select>
-          <select x-model="forms.logistics.order_id" class="border rounded px-3 py-2 bg-white">
-            <option value="">Select Order</option>
-            <template x-for="o in orders" :key="o.id">
-              <option :value="o.id" x-text="o.order_code"></option>
-            </template>
-          </select>
-        </div>
-        <div class="grid grid-cols-3 gap-2">
-          <input x-model="forms.logistics.origin_port" placeholder="Origin Port" class="border rounded px-3 py-2" />
-          <input x-model="forms.logistics.destination_port" placeholder="Destination Port" class="border rounded px-3 py-2" />
-          <select x-model="forms.logistics.incoterms" class="border rounded px-3 py-2 bg-white">
-            <option>FOB</option><option>CIF</option><option>EXW</option><option>CFR</option>
-          </select>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <input x-model="forms.logistics.container_awb" placeholder="Container / BL / AWB #" class="border rounded px-3 py-2" />
-          <input x-model="forms.logistics.shipping_bill_no" placeholder="Shipping Bill #" class="border rounded px-3 py-2" />
-        </div>
-        <div class="grid grid-cols-3 gap-2">
-          <input type="date" x-model="forms.logistics.etd" class="border rounded px-3 py-2" />
-          <input type="date" x-model="forms.logistics.eta" class="border rounded px-3 py-2" />
-          <select x-model="forms.logistics.stage" class="border rounded px-3 py-2 bg-white">
-            <option>Booked</option><option>Customs / CHA</option><option>In Transit</option><option>Delivered</option>
-          </select>
-        </div>
-        <input x-model="forms.logistics.remarks" placeholder="CHA / carrier / customs remarks" class="w-full border rounded px-3 py-2" />
-      </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button @click="modals.logistics = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
-        <button @click="saveLogistics()" class="bg-cyan-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Shipment</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     function sourcingApp() {
       return {
@@ -1359,9 +1096,6 @@
         buyers: [],
         suppliers: [],
         orders: [],
-        buyerLedger: [],
-        supplierLedger: [],
-        logistics: [],
         selectedOrderId: '',
         expandedItems: {},
         assignTargetItem: null,
@@ -1373,9 +1107,6 @@
           order: false,
           addProduct: false,
           assignSupplier: false,
-          buyerLedger: false,
-          supplierLedger: false,
-          logistics: false,
         },
         forms: {
           glProduct: {
@@ -1423,9 +1154,6 @@
           },
           singleProduct: { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
           quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: '1 - RFQ Sent', remarks: '' },
-          buyerLedger: { id: null, invoice_no: '', buyer_id: '', order_id: '', currency: 'USD', invoice_amount: '', amount_received: '', due_date: '', payment_status: 'Unpaid', remarks: '' },
-          supplierLedger: { id: null, po_ref: '', supplier_id: '', order_id: '', currency: 'INR', total_amount: '', amount_paid: '', qc_status: 'Pending QC', payment_status: 'Pending', remarks: '' },
-          logistics: { id: null, shipment_ref: '', order_id: '', buyer_id: '', origin_port: 'Chennai', destination_port: '', incoterms: 'FOB', container_awb: '', shipping_bill_no: '', etd: '', eta: '', stage: 'Booked', remarks: '' },
         },
 
         get activeOrder() {
@@ -1438,6 +1166,24 @@
 
         get archivedSuppliersCount() {
           return this.suppliers.filter((s) => s.is_archived).length;
+        },
+
+        get awardedOrderRows() {
+          const rows = [];
+          for (const order of this.orders) {
+            for (const item of order.items || []) {
+              for (const quote of item.quotes || []) {
+                if (Number(quote.is_selected) === 1 || quote.status === '6 - Awarded / PO Issued') {
+                  rows.push({ order, item, quote });
+                }
+              }
+            }
+          }
+          return rows;
+        },
+
+        get awardedQuotesCount() {
+          return this.awardedOrderRows.length;
         },
 
         get filteredGlProducts() {
@@ -1510,6 +1256,12 @@
           return names.length ? names.join(', ') : '-';
         },
 
+        openOrderFromProcessing(orderId, itemId) {
+          this.selectedOrderId = orderId;
+          this.expandedItems[itemId] = true;
+          this.activeTab = 'orders';
+        },
+
         async init() {
           await this.loadAll();
           if (this.orders.length > 0 && !this.selectedOrderId) {
@@ -1521,22 +1273,16 @@
         },
 
         async loadAll() {
-          const [gpRes, dirRes, ordRes, blRes, slRes, lgRes] = await Promise.all([
+          const [gpRes, dirRes, ordRes] = await Promise.all([
             fetch('/api/gl-products'),
             fetch('/api/directory'),
             fetch('/api/orders'),
-            fetch('/api/buyer-ledger'),
-            fetch('/api/supplier-ledger'),
-            fetch('/api/logistics'),
           ]);
           this.glProducts = await gpRes.json();
           const dir = await dirRes.json();
           this.buyers = dir.buyers || [];
           this.suppliers = dir.suppliers || [];
           this.orders = await ordRes.json();
-          this.buyerLedger = await blRes.json();
-          this.supplierLedger = await slRes.json();
-          this.logistics = await lgRes.json();
         },
 
         toggleItem(id) {
@@ -1558,7 +1304,7 @@
           return clean ? `https://wa.me/${clean}` : '#';
         },
 
-        // --- STEP 1: GL PRODUCTS MASTER CRUD ---
+        // --- STEP 1: PRODUCT MASTER CRUD ---
         openGlProductModal(gp = null) {
           this.forms.glProduct = gp
             ? { ...gp }
@@ -1611,7 +1357,7 @@
         },
 
         async deleteGlProduct(id) {
-          if (!confirm('Delete this product from GL Products?')) return;
+          if (!confirm('Delete this product from Product?')) return;
           await fetch(`/api/gl-products/${id}`, { method: 'DELETE' });
           await this.loadAll();
         },
@@ -1746,7 +1492,7 @@
           await this.loadAll();
         },
 
-        // --- STEP 2: BUYER ENQUIRY / ORDER ---
+        // --- STEP 2: BUYER ENQUIRIES ---
         onSelectEnquiryBuyer() {
           const selected = this.buyers.find((b) => String(b.id) === String(this.forms.order.buyer_id));
           if (!selected) return;
@@ -1823,7 +1569,7 @@
         },
 
         async deleteOrder(orderId) {
-          if (!confirm('Delete this entire Buyer Enquiry / Order and all its products/quotes?')) return;
+          if (!confirm('Delete this entire Buyer Enquiry and all its products/quotes?')) return;
           await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
           this.selectedOrderId = '';
           await this.loadAll();
@@ -1907,84 +1653,6 @@
 
         async deleteQuote(quoteId) {
           await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
-          await this.loadAll();
-        },
-
-        // --- BUYER LEDGER CRUD ---
-        openBuyerLedgerModal(row = null) {
-          this.forms.buyerLedger = row
-            ? { ...row }
-            : { id: null, invoice_no: '', buyer_id: this.buyers[0]?.id || '', order_id: '', currency: 'USD', invoice_amount: '', amount_received: '', due_date: '', payment_status: 'Unpaid', remarks: '' };
-          this.modals.buyerLedger = true;
-        },
-
-        async saveBuyerLedger() {
-          if (!this.forms.buyerLedger.invoice_no || !this.forms.buyerLedger.buyer_id) return alert('Invoice # and Buyer are required');
-          const isEdit = Boolean(this.forms.buyerLedger.id);
-          await fetch(isEdit ? `/api/buyer-ledger/${this.forms.buyerLedger.id}` : '/api/buyer-ledger', {
-            method: isEdit ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.forms.buyerLedger),
-          });
-          this.modals.buyerLedger = false;
-          await this.loadAll();
-        },
-
-        async deleteBuyerLedger(id) {
-          if (!confirm('Delete this buyer invoice entry?')) return;
-          await fetch(`/api/buyer-ledger/${id}`, { method: 'DELETE' });
-          await this.loadAll();
-        },
-
-        // --- SUPPLIER LEDGER CRUD ---
-        openSupplierLedgerModal(row = null) {
-          this.forms.supplierLedger = row
-            ? { ...row }
-            : { id: null, po_ref: '', supplier_id: this.suppliers[0]?.id || '', order_id: '', currency: 'INR', total_amount: '', amount_paid: '', qc_status: 'Pending QC', payment_status: 'Pending', remarks: '' };
-          this.modals.supplierLedger = true;
-        },
-
-        async saveSupplierLedger() {
-          if (!this.forms.supplierLedger.po_ref || !this.forms.supplierLedger.supplier_id) return alert('PO Ref and Supplier are required');
-          const isEdit = Boolean(this.forms.supplierLedger.id);
-          await fetch(isEdit ? `/api/supplier-ledger/${this.forms.supplierLedger.id}` : '/api/supplier-ledger', {
-            method: isEdit ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.forms.supplierLedger),
-          });
-          this.modals.supplierLedger = false;
-          await this.loadAll();
-        },
-
-        async deleteSupplierLedger(id) {
-          if (!confirm('Delete this supplier ledger entry?')) return;
-          await fetch(`/api/supplier-ledger/${id}`, { method: 'DELETE' });
-          await this.loadAll();
-        },
-
-        // --- LOGISTICS CRUD ---
-        openLogisticsModal(row = null) {
-          this.forms.logistics = row
-            ? { ...row }
-            : { id: null, shipment_ref: '', order_id: '', buyer_id: this.buyers[0]?.id || '', origin_port: 'Chennai', destination_port: '', incoterms: 'FOB', container_awb: '', shipping_bill_no: '', etd: '', eta: '', stage: 'Booked', remarks: '' };
-          this.modals.logistics = true;
-        },
-
-        async saveLogistics() {
-          if (!this.forms.logistics.shipment_ref) return alert('Shipment reference is required');
-          const isEdit = Boolean(this.forms.logistics.id);
-          await fetch(isEdit ? `/api/logistics/${this.forms.logistics.id}` : '/api/logistics', {
-            method: isEdit ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.forms.logistics),
-          });
-          this.modals.logistics = false;
-          await this.loadAll();
-        },
-
-        async deleteLogistics(id) {
-          if (!confirm('Delete this shipment entry?')) return;
-          await fetch(`/api/logistics/${id}`, { method: 'DELETE' });
           await this.loadAll();
         },
       };
