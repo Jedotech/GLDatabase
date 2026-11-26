@@ -89,7 +89,7 @@ async function ensureSchema(db) {
       buyer_documents TEXT DEFAULT '',
       general_notes TEXT DEFAULT '',
       target_delivery_date TEXT,
-      status TEXT DEFAULT 'Active',
+      status TEXT DEFAULT 'Received',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (buyer_id) REFERENCES buyers(id)
     );
@@ -114,10 +114,21 @@ async function ensureSchema(db) {
       moq REAL DEFAULT 0,
       moq_unit TEXT DEFAULT 'KG',
       lead_time_days INTEGER DEFAULT 0,
-      status TEXT DEFAULT '1 - RFQ Sent',
+      status TEXT DEFAULT 'RFQ Sent',
       sample_awb TEXT DEFAULT '',
       remarks TEXT DEFAULT '',
       is_selected INTEGER DEFAULT 0,
+      po_number TEXT DEFAULT '',
+      payment_mode TEXT DEFAULT '',
+      payment_ref TEXT DEFAULT '',
+      qc_status TEXT DEFAULT 'Pending QC',
+      bl_number TEXT DEFAULT '',
+      shipping_bill_no TEXT DEFAULT '',
+      container_no TEXT DEFAULT '',
+      etd TEXT DEFAULT '',
+      eta TEXT DEFAULT '',
+      shipping_docs TEXT DEFAULT '',
+      execution_stage TEXT DEFAULT 'PO Issued',
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
@@ -126,6 +137,18 @@ async function ensureSchema(db) {
 
   // Safe migrations for existing Turso databases
   await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN po_number TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN payment_mode TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN payment_ref TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN qc_status TEXT DEFAULT 'Pending QC'`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN bl_number TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN shipping_bill_no TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN container_no TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN etd TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN eta TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN shipping_docs TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN execution_stage TEXT DEFAULT 'PO Issued'`);
+
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_contact TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN enquiry_received_date TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN enquiry_source TEXT DEFAULT 'Email'`);
@@ -494,6 +517,7 @@ export async function onRequest(context) {
           buyer_documents,
           general_notes,
           target_delivery_date,
+          status,
           products,
         } = await request.json();
 
@@ -503,8 +527,8 @@ export async function onRequest(context) {
 
         const orderRes = await db.execute({
           sql: `INSERT INTO orders
-                (order_code, buyer_id, buyer_contact, enquiry_received_date, enquiry_source, destination_country, currency, incoterms, payment_terms, gl_team, buyer_documents, general_notes, target_delivery_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+                (order_code, buyer_id, buyer_contact, enquiry_received_date, enquiry_source, destination_country, currency, incoterms, payment_terms, gl_team, buyer_documents, general_notes, target_delivery_date, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
           args: [
             order_code,
             buyer_id,
@@ -519,6 +543,7 @@ export async function onRequest(context) {
             buyer_documents || '',
             general_notes || '',
             target_delivery_date || '',
+            status || 'Received',
           ],
         });
         const orderId = orderRes.rows[0].id;
@@ -545,17 +570,29 @@ export async function onRequest(context) {
       }
     }
 
-    // 7. DELETE /api/orders/:orderId
-    const orderDeleteMatch = path.match(/^\/api\/orders\/(\d+)$/);
-    if (orderDeleteMatch && method === 'DELETE') {
-      const orderId = orderDeleteMatch[1];
-      await db.execute({
-        sql: `DELETE FROM item_quotes WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id = ?)`,
-        args: [orderId],
-      });
-      await db.execute({ sql: `DELETE FROM order_items WHERE order_id = ?`, args: [orderId] });
-      await db.execute({ sql: `DELETE FROM orders WHERE id = ?`, args: [orderId] });
-      return jsonResponse({ success: true });
+    // 7. PUT & DELETE /api/orders/:orderId
+    const orderMatch = path.match(/^\/api\/orders\/(\d+)$/);
+    if (orderMatch) {
+      const orderId = orderMatch[1];
+      if (method === 'PUT') {
+        const body = await request.json();
+        if (body.status !== undefined) {
+          await db.execute({
+            sql: `UPDATE orders SET status = ? WHERE id = ?`,
+            args: [body.status || 'Received', orderId],
+          });
+        }
+        return jsonResponse({ success: true });
+      }
+      if (method === 'DELETE') {
+        await db.execute({
+          sql: `DELETE FROM item_quotes WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id = ?)`,
+          args: [orderId],
+        });
+        await db.execute({ sql: `DELETE FROM order_items WHERE order_id = ?`, args: [orderId] });
+        await db.execute({ sql: `DELETE FROM orders WHERE id = ?`, args: [orderId] });
+        return jsonResponse({ success: true });
+      }
     }
 
     // 8. POST /api/orders/:orderId/items
@@ -623,14 +660,14 @@ export async function onRequest(context) {
       }
 
       const headers = [
-        'RFQ / Enquiry Ref', 'Buyer Company', 'Buyer Contact', 'Buyer Phone',
+        'RFQ / Enquiry Ref', 'Enquiry Status', 'Buyer Company', 'Buyer Contact', 'Buyer Phone',
         'Enquiry Received Date', 'Enquiry Source', 'Destination Country', 'Destination Port',
         'Incoterms', 'Currency', 'Payment Terms', 'GL Team', 'Delivery Deadline',
         'Buyer Documents', 'General Notes', 'Product #', 'Product Name',
         'Specifications', 'Required Qty', 'Unit', 'Buyer Target Price', 'Awarded?',
         'Supplier Company', 'Supplier Contact', 'Supplier Phone/WA', 'Supplier Email',
         'Supplier Location', 'Certifications', 'Supplier Quoted Price', 'Margin %',
-        'Est. Total Profit', 'MOQ', 'MOQ Unit', 'Lead Time (Days)', 'Sourcing Status', 'Sample AWB', 'Remarks',
+        'Est. Total Profit', 'MOQ', 'MOQ Unit', 'Lead Time (Days)', 'Supplier Status', 'Sample AWB', 'Remarks',
       ];
 
       const rows = [headers.map(csvCell).join(',')];
@@ -644,7 +681,7 @@ export async function onRequest(context) {
         if (itemQuotes.length === 0) {
           rows.push(
             [
-              order.order_code, order.buyer_name, buyerContact, order.buyer_phone,
+              order.order_code, order.status, order.buyer_name, buyerContact, order.buyer_phone,
               order.enquiry_received_date, order.enquiry_source, order.destination_country,
               order.destination_port, order.incoterms, order.currency, order.payment_terms,
               order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
@@ -663,7 +700,7 @@ export async function onRequest(context) {
 
             rows.push(
               [
-                order.order_code, order.buyer_name, buyerContact, order.buyer_phone,
+                order.order_code, order.status, order.buyer_name, buyerContact, order.buyer_phone,
                 order.enquiry_received_date, order.enquiry_source, order.destination_country,
                 order.destination_port, order.incoterms, order.currency, order.payment_terms,
                 order.gl_team, order.target_delivery_date, order.buyer_documents, order.general_notes,
@@ -733,7 +770,7 @@ export async function onRequest(context) {
           Number(moq) || 0,
           moq_unit || 'KG',
           Number(lead_time_days) || 0,
-          status || '1 - RFQ Sent',
+          status || 'RFQ Sent',
           sample_awb || '',
           remarks || '',
         ],
@@ -746,11 +783,36 @@ export async function onRequest(context) {
     if (quoteMatch) {
       const quoteId = quoteMatch[1];
       if (method === 'PUT') {
-        const { quoted_price, moq, moq_unit, lead_time_days, status, sample_awb, remarks, is_selected } = await request.json();
+        const {
+          quoted_price,
+          moq,
+          moq_unit,
+          lead_time_days,
+          status,
+          sample_awb,
+          remarks,
+          is_selected,
+          po_number,
+          payment_mode,
+          payment_ref,
+          qc_status,
+          bl_number,
+          shipping_bill_no,
+          container_no,
+          etd,
+          eta,
+          shipping_docs,
+          execution_stage,
+        } = await request.json();
+
         await db.execute({
           sql: `UPDATE item_quotes
                 SET quoted_price = ?, moq = ?, moq_unit = ?, lead_time_days = ?, status = ?,
-                    sample_awb = ?, remarks = ?, is_selected = ?, updated_at = CURRENT_TIMESTAMP
+                    sample_awb = ?, remarks = ?, is_selected = ?,
+                    po_number = ?, payment_mode = ?, payment_ref = ?, qc_status = ?,
+                    bl_number = ?, shipping_bill_no = ?, container_no = ?,
+                    etd = ?, eta = ?, shipping_docs = ?, execution_stage = ?,
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?`,
           args: [
             Number(quoted_price) || 0,
@@ -761,6 +823,17 @@ export async function onRequest(context) {
             sample_awb || '',
             remarks || '',
             is_selected ? 1 : 0,
+            po_number || '',
+            payment_mode || '',
+            payment_ref || '',
+            qc_status || 'Pending QC',
+            bl_number || '',
+            shipping_bill_no || '',
+            container_no || '',
+            etd || '',
+            eta || '',
+            shipping_docs || '',
+            execution_stage || 'PO Issued',
             quoteId,
           ],
         });
