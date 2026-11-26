@@ -14,6 +14,25 @@ function jsonResponse(data, status = 200) {
   });
 }
 
+// Configure Admin emails for Alex and Jesu Doss here (or via Cloudflare Pages env var ADMIN_EMAILS)
+const DEFAULT_ADMIN_EMAILS = [
+  'business@glglobal.in',
+  'alex@glglobal.in',
+];
+
+function isAdminAuthorized(request, env) {
+  const cfEmail = (request.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase();
+  if (!cfEmail) return false;
+
+  const envAdmins = (env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  const allowlist = envAdmins.length > 0 ? envAdmins : DEFAULT_ADMIN_EMAILS;
+  return allowlist.includes(cfEmail);
+}
+
 function csvCell(val) {
   if (val === null || val === undefined) return '""';
   const str = String(val).replace(/"/g, '""');
@@ -213,6 +232,14 @@ export async function onRequest(context) {
     return jsonResponse(
       { error: 'Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN in Cloudflare Pages Environment Variables.' },
       500
+    );
+  }
+
+  // Enforce server-side Admin restriction on all permanent DELETE requests via Cloudflare Access header
+  if (method === 'DELETE' && !isAdminAuthorized(request, env)) {
+    return jsonResponse(
+      { error: 'Forbidden: Permanent deletion is restricted to Alex and Jesu Doss.' },
+      403
     );
   }
 
