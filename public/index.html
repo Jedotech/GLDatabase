@@ -37,7 +37,7 @@
         <button @click="activeTab = 'suppliers'"
                 :class="activeTab === 'suppliers' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'"
                 class="px-3.5 py-1.5 rounded-md transition">
-          Suppliers (<span x-text="suppliers.length"></span>)
+          Suppliers (<span x-text="activeSuppliersCount"></span>)
         </button>
         <button @click="activeTab = 'buyerLedger'"
                 :class="activeTab === 'buyerLedger' ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white'"
@@ -70,18 +70,10 @@
     <!-- ==================== STEP 1: GL PRODUCTS MASTER ==================== -->
     <div x-show="activeTab === 'glProducts'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex-1 min-w-[260px] flex flex-wrap gap-2">
+        <div class="flex-1 min-w-[260px]">
           <input type="text" x-model="glProductSearch"
-                 placeholder="Search GL Products by name, category, form, origin, grade, HSN, or checklist..."
-                 class="flex-1 min-w-[220px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-teal-500" />
-          <select x-model="glProductStatusFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
-            <option value="ALL">All Statuses</option>
-            <option>Under Evaluation</option>
-            <option>Sourcing in Progress</option>
-            <option>Ready to Offer</option>
-            <option>On Hold</option>
-            <option>Discontinued</option>
-          </select>
+                 placeholder="Search by Product ID, Product Name, Category, Origin, HSN Code, or Internal Notes..."
+                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-teal-500" />
         </div>
         <button @click="openGlProductModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm">
           + Add GL Product
@@ -91,21 +83,21 @@
       <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
           <div>
-            <h2 class="font-bold text-slate-800 text-base">GL Products Master (<span x-text="filteredGlProducts.length"></span>)</h2>
-            <p class="text-xs text-slate-500">Enter each product once here, then select it when creating buyer enquiries or searching suppliers.</p>
+            <h2 class="font-bold text-slate-800 text-base">GL Products (<span x-text="filteredGlProducts.length"></span>)</h2>
+            <p class="text-xs text-slate-500">Each product is entered once here and selected when creating buyer enquiries or linking suppliers.</p>
           </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Product &amp; Category</th>
-                <th class="p-3.5">Form &amp; Origin</th>
-                <th class="p-3.5">Grades / Variants</th>
-                <th class="p-3.5">HSN &amp; Jurisdiction</th>
-                <th class="p-3.5">Unit &amp; MOQ</th>
-                <th class="p-3.5">Test / Doc Checklist</th>
-                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Product ID</th>
+                <th class="p-3.5">Product Name</th>
+                <th class="p-3.5">Category</th>
+                <th class="p-3.5">Origin</th>
+                <th class="p-3.5">Product Spec &amp; COA</th>
+                <th class="p-3.5">HSN Code</th>
+                <th class="p-3.5">Internal Notes</th>
                 <th class="p-3.5 text-right">Actions</th>
               </tr>
             </thead>
@@ -113,38 +105,28 @@
               <template x-if="filteredGlProducts.length === 0">
                 <tr>
                   <td colspan="8" class="p-8 text-center text-slate-400">
-                    No GL Products found. Click <strong>+ Add GL Product</strong> to create your master product list.
+                    No GL Products found. Click <strong>+ Add GL Product</strong> to add one (e.g. <code>GL-TEJ-SL</code> — Red Chilli – Teja Stemless).
                   </td>
                 </tr>
               </template>
               <template x-for="gp in filteredGlProducts" :key="gp.id">
                 <tr class="hover:bg-slate-50">
+                  <td class="p-3.5 align-top font-mono font-bold text-teal-800" x-text="gp.product_id || '-'"></td>
+                  <td class="p-3.5 align-top font-bold text-slate-900 text-sm" x-text="gp.product_name"></td>
+                  <td class="p-3.5 align-top text-slate-700" x-text="gp.category || '-'"></td>
+                  <td class="p-3.5 align-top text-slate-700" x-text="gp.origin || '-'"></td>
                   <td class="p-3.5 align-top">
-                    <div class="font-bold text-slate-900 text-sm" x-text="gp.product_name"></div>
-                    <div class="text-slate-500" x-text="gp.category || '-'"></div>
+                    <template x-if="gp.spec_coa_pdf_data">
+                      <a :href="gp.spec_coa_pdf_data" :download="gp.spec_coa_pdf_name || 'spec-coa.pdf'"
+                         class="text-blue-600 hover:underline font-semibold"
+                         x-text="gp.spec_coa_pdf_name || 'Spec & COA PDF'"></a>
+                    </template>
+                    <template x-if="!gp.spec_coa_pdf_data">
+                      <span class="text-slate-400">-</span>
+                    </template>
                   </td>
-                  <td class="p-3.5 align-top">
-                    <div class="font-medium text-slate-800" x-text="gp.product_form || '-'"></div>
-                    <div class="text-slate-500" x-text="gp.origin ? `Origin: ${gp.origin}` : ''"></div>
-                  </td>
-                  <td class="p-3.5 align-top font-medium text-slate-800" x-text="gp.grades_variants || '-'"></td>
-                  <td class="p-3.5 align-top">
-                    <div class="font-semibold text-slate-800" x-text="gp.hsn_code || '-'"></div>
-                    <div class="text-[11px] text-slate-500" x-text="gp.hsn_jurisdiction || ''"></div>
-                    <span class="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold"
-                          :class="gp.hsn_verification_status === 'Verified' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'"
-                          x-text="gp.hsn_verification_status || 'Unverified'"></span>
-                  </td>
-                  <td class="p-3.5 align-top">
-                    <div class="font-semibold text-slate-800" x-text="`Unit: ${gp.standard_unit || 'MT'}`"></div>
-                    <div class="text-slate-500" x-text="`MOQ: ${gp.moq || 0} ${gp.standard_unit || 'MT'}`"></div>
-                  </td>
-                  <td class="p-3.5 align-top text-slate-600 max-w-[220px]" x-text="gp.test_doc_checklist || '-'"></td>
-                  <td class="p-3.5 align-top">
-                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                          :class="glStatusBadge(gp.status)"
-                          x-text="gp.status"></span>
-                  </td>
+                  <td class="p-3.5 align-top font-medium text-slate-700" x-text="gp.hsn_code || 'Need to update'"></td>
+                  <td class="p-3.5 align-top text-slate-600 max-w-[240px]" x-text="gp.internal_notes || '-'"></td>
                   <td class="p-3.5 align-top text-right space-x-2 whitespace-nowrap">
                     <button @click="openGlProductModal(gp)" class="text-blue-600 hover:underline font-semibold">Edit</button>
                     <button @click="deleteGlProduct(gp.id)" class="text-red-600 hover:underline font-semibold">Delete</button>
@@ -448,13 +430,23 @@
       </div>
     </div>
 
-    <!-- ==================== SUPPLIERS PAGE ==================== -->
+    <!-- ==================== SUPPLIERS TAB ==================== -->
     <div x-show="activeTab === 'suppliers'" class="space-y-5" style="display:none;">
       <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex-1 min-w-[260px]">
+        <div class="flex-1 min-w-[260px] flex flex-wrap items-center gap-3">
           <input type="text" x-model="supplierSearch"
-                 placeholder="Search Suppliers by company name, contact person, city/country, products supplied, or certifications..."
-                 class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
+                 placeholder="Search by Supplier ID, Name, Contact, Role, Facility Type, Address, or Linked Products..."
+                 class="flex-1 min-w-[220px] border border-slate-300 rounded-lg px-4 py-2 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500" />
+          <select x-model="supplierStatusFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
+            <option value="ALL">All Statuses</option>
+            <option>Under Verification</option>
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+          <label class="flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer select-none">
+            <input type="checkbox" x-model="showArchivedSuppliers" class="accent-emerald-600" />
+            Show Archived (<span x-text="archivedSuppliersCount"></span>)
+          </label>
         </div>
         <button @click="openSupplierModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm">
           + Add Supplier
@@ -469,40 +461,86 @@
           <table class="w-full text-left border-collapse text-xs">
             <thead>
               <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-                <th class="p-3.5">Supplier Company</th>
-                <th class="p-3.5">Contact Person</th>
-                <th class="p-3.5">Phone / WhatsApp</th>
-                <th class="p-3.5">Email</th>
-                <th class="p-3.5">Location</th>
-                <th class="p-3.5">Products Supplied / Specialties</th>
-                <th class="p-3.5">Certifications</th>
-                <th class="p-3.5 text-right">Actions</th>
+                <th class="p-3">Supplier ID</th>
+                <th class="p-3">Supplier Name</th>
+                <th class="p-3">Contact Name</th>
+                <th class="p-3">Role/Designation</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">WhatsApp / Contact Number</th>
+                <th class="p-3">Facility Type</th>
+                <th class="p-3">Facility Address</th>
+                <th class="p-3">Products</th>
+                <th class="p-3">Supplier Status</th>
+                <th class="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
               <template x-if="filteredSuppliers.length === 0">
                 <tr>
-                  <td colspan="8" class="p-8 text-center text-slate-400">
+                  <td colspan="11" class="p-8 text-center text-slate-400">
                     No suppliers found. Click <strong>+ Add Supplier</strong> to add your first supplier.
                   </td>
                 </tr>
               </template>
               <template x-for="s in filteredSuppliers" :key="s.id">
-                <tr class="hover:bg-slate-50">
-                  <td class="p-3.5 font-bold text-slate-900 text-sm" x-text="s.company_name"></td>
-                  <td class="p-3.5 text-slate-700" x-text="s.contact_person || '-'"></td>
-                  <td class="p-3.5">
-                    <span x-text="s.phone_whatsapp || '-'"></span>
-                    <a x-show="s.phone_whatsapp" :href="waLink(s.phone_whatsapp)" target="_blank"
-                       class="ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-semibold">WA</a>
+                <tr class="hover:bg-slate-50" :class="s.is_archived ? 'opacity-60 bg-slate-50' : ''">
+                  <td class="p-3 align-top font-mono font-bold text-emerald-800 whitespace-nowrap" x-text="s.supplier_code"></td>
+                  <td class="p-3 align-top">
+                    <div class="font-bold text-slate-900 text-sm" x-text="s.company_name"></div>
+                    <span x-show="s.is_archived" class="inline-block mt-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.5 rounded">Archived</span>
                   </td>
-                  <td class="p-3.5 text-slate-600" x-text="s.email || '-'"></td>
-                  <td class="p-3.5 text-slate-600" x-text="s.city_country || '-'"></td>
-                  <td class="p-3.5 text-slate-800 font-medium" x-text="s.specialties || '-'"></td>
-                  <td class="p-3.5 text-blue-700 font-semibold" x-text="s.certifications || '-'"></td>
-                  <td class="p-3.5 text-right space-x-3 whitespace-nowrap">
+                  <td class="p-3 align-top text-slate-800 font-medium" x-text="s.contact_person || '-'"></td>
+                  <td class="p-3 align-top text-slate-600" x-text="s.role_designation || '-'"></td>
+                  <td class="p-3 align-top">
+                    <template x-if="s.email">
+                      <a :href="`mailto:${s.email}`" class="text-blue-600 hover:underline font-medium" x-text="s.email"></a>
+                    </template>
+                    <template x-if="!s.email">
+                      <span class="text-slate-400">-</span>
+                    </template>
+                  </td>
+                  <td class="p-3 align-top whitespace-nowrap">
+                    <template x-if="s.phone_whatsapp">
+                      <a :href="waLink(s.phone_whatsapp)" target="_blank" rel="noopener noreferrer"
+                         class="inline-flex items-center gap-1.5 text-emerald-700 hover:underline font-semibold">
+                        <span x-text="s.phone_whatsapp"></span>
+                        <span class="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-bold">WA</span>
+                      </a>
+                    </template>
+                    <template x-if="!s.phone_whatsapp">
+                      <span class="text-slate-400">-</span>
+                    </template>
+                  </td>
+                  <td class="p-3 align-top text-slate-700 whitespace-nowrap" x-text="s.facility_type || '-'"></td>
+                  <td class="p-3 align-top text-slate-600 max-w-[180px]" x-text="s.city_country || '-'"></td>
+                  <td class="p-3 align-top max-w-[200px]">
+                    <template x-if="!s.linked_products || s.linked_products.length === 0">
+                      <span class="text-slate-400">-</span>
+                    </template>
+                    <template x-if="s.linked_products && s.linked_products.length > 0">
+                      <div class="flex flex-wrap gap-1 items-center">
+                        <template x-for="lp in s.linked_products.slice(0, 2)" :key="lp.product_id + '-' + lp.product_name">
+                          <span class="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded text-[11px] font-medium"
+                                x-text="lp.product_name"></span>
+                        </template>
+                        <span x-show="s.linked_products.length > 2"
+                              class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                              x-text="`+${s.linked_products.length - 2} more`"></span>
+                      </div>
+                    </template>
+                  </td>
+                  <td class="p-3 align-top whitespace-nowrap">
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          :class="supplierStatusBadge(s.supplier_status)"
+                          x-text="s.supplier_status || 'Under Verification'"></span>
+                  </td>
+                  <td class="p-3 align-top text-right space-x-2 whitespace-nowrap">
+                    <button @click="openViewSupplierModal(s)" class="text-slate-700 hover:underline font-semibold">View</button>
                     <button @click="openSupplierModal(s)" class="text-blue-600 hover:underline font-semibold">Edit</button>
-                    <button @click="deleteSupplier(s)" class="text-red-600 hover:underline font-semibold">Delete</button>
+                    <button @click="toggleArchiveSupplier(s)"
+                            :class="s.is_archived ? 'text-emerald-600' : 'text-amber-600'"
+                            class="hover:underline font-semibold"
+                            x-text="s.is_archived ? 'Restore' : 'Archive'"></button>
                   </td>
                 </tr>
               </template>
@@ -712,78 +750,44 @@
 
   <!-- MODAL 0: ADD / EDIT GL PRODUCT MASTER -->
   <div x-show="modals.glProduct" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.glProduct.id ? 'Edit GL Product' : 'Add Product to GL Products Master'"></h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+    <div class="bg-white rounded-lg max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.glProduct.id ? 'Edit GL Product' : 'Add GL Product'"></h3>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Product ID *</label>
+          <input x-model="forms.glProduct.product_id" placeholder="e.g. GL-TEJ-SL" class="w-full border rounded px-3 py-2 mt-1 font-mono" />
+        </div>
         <div>
           <label class="text-xs font-semibold text-slate-600">Product Name *</label>
-          <input x-model="forms.glProduct.product_name" placeholder="e.g. Black Pepper" class="w-full border rounded px-3 py-2 mt-1" />
+          <input x-model="forms.glProduct.product_name" placeholder="e.g. Red Chilli – Teja Stemless" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
           <label class="text-xs font-semibold text-slate-600">Category</label>
           <input x-model="forms.glProduct.category" placeholder="e.g. Whole Spices" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-600">Product Form</label>
-          <input list="product-form-list" x-model="forms.glProduct.product_form" placeholder="Whole, Ground, Powder, Dried..." class="w-full border rounded px-3 py-2 mt-1" />
-          <datalist id="product-form-list">
-            <option value="Whole"></option>
-            <option value="Ground"></option>
-            <option value="Powder"></option>
-            <option value="Dried"></option>
-            <option value="Raw / Unprocessed"></option>
-          </datalist>
+          <label class="text-xs font-semibold text-slate-600">Origin</label>
+          <input x-model="forms.glProduct.origin" placeholder="e.g. Tamil Nadu" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-600">Origin</label>
-          <input x-model="forms.glProduct.origin" placeholder="e.g. Idukki, Kerala / Erode, TN" class="w-full border rounded px-3 py-2 mt-1" />
-        </div>
-        <div class="md:col-span-2">
-          <label class="text-xs font-semibold text-slate-600">Grades / Variants</label>
-          <input x-model="forms.glProduct.grades_variants" placeholder="e.g. 500 GL, 550 GL, Bold, FAQ" class="w-full border rounded px-3 py-2 mt-1" />
+          <label class="text-xs font-semibold text-slate-600">Product Spec &amp; COA (PDF Upload)</label>
+          <input type="file" accept="application/pdf,.pdf" @change="handleSpecCoaPdfUpload($event)" class="w-full border rounded px-3 py-2 mt-1 text-xs bg-slate-50" />
+          <template x-if="forms.glProduct.spec_coa_pdf_name">
+            <div class="mt-1.5 flex items-center gap-3 text-xs">
+              <a :href="forms.glProduct.spec_coa_pdf_data" :download="forms.glProduct.spec_coa_pdf_name"
+                 class="text-blue-600 hover:underline font-semibold"
+                 x-text="forms.glProduct.spec_coa_pdf_name"></a>
+              <button type="button" @click="clearSpecCoaPdf()" class="text-red-600 hover:underline font-semibold">Remove PDF</button>
+            </div>
+          </template>
         </div>
         <div>
           <label class="text-xs font-semibold text-slate-600">HSN Code</label>
-          <input x-model="forms.glProduct.hsn_code" placeholder="e.g. 0904.11" class="w-full border rounded px-3 py-2 mt-1" />
+          <input x-model="forms.glProduct.hsn_code" placeholder="Need to update" class="w-full border rounded px-3 py-2 mt-1" />
         </div>
         <div>
-          <label class="text-xs font-semibold text-slate-600">Jurisdiction &amp; Verification Status</label>
-          <div class="grid grid-cols-2 gap-2 mt-1">
-            <input x-model="forms.glProduct.hsn_jurisdiction" placeholder="Market (e.g. IN / EU)" class="border rounded px-2.5 py-2" />
-            <select x-model="forms.glProduct.hsn_verification_status" class="border rounded px-2 py-2 bg-white">
-              <option>Unverified</option>
-              <option>Verified</option>
-              <option>Needs Check</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-slate-600">Standard Unit</label>
-          <input list="std-unit-list" x-model="forms.glProduct.standard_unit" placeholder="MT, KG, PCS..." class="w-full border rounded px-3 py-2 mt-1" />
-          <datalist id="std-unit-list">
-            <option value="MT"></option>
-            <option value="KG"></option>
-            <option value="Bag (50 kg)"></option>
-            <option value="PCS"></option>
-          </datalist>
-        </div>
-        <div>
-          <label class="text-xs font-semibold text-slate-600">Standard MOQ</label>
-          <input type="number" step="0.01" x-model="forms.glProduct.moq" placeholder="Minimum order quantity" class="w-full border rounded px-3 py-2 mt-1" />
-        </div>
-        <div class="md:col-span-2">
-          <label class="text-xs font-semibold text-slate-600">Test / Document Checklist</label>
-          <input x-model="forms.glProduct.test_doc_checklist" placeholder="e.g. COA, Phytosanitary Certificate, Moisture Report, Lab Test" class="w-full border rounded px-3 py-2 mt-1" />
-        </div>
-        <div class="md:col-span-2">
-          <label class="text-xs font-semibold text-slate-600">Product Status</label>
-          <select x-model="forms.glProduct.status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
-            <option>Under Evaluation</option>
-            <option>Sourcing in Progress</option>
-            <option>Ready to Offer</option>
-            <option>On Hold</option>
-            <option>Discontinued</option>
-          </select>
+          <label class="text-xs font-semibold text-slate-600">Internal Notes</label>
+          <textarea x-model="forms.glProduct.internal_notes" rows="2" placeholder="Optional internal comments" class="w-full border rounded px-3 py-2 mt-1"></textarea>
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
@@ -812,20 +816,145 @@
     </div>
   </div>
 
-  <!-- MODAL 2: ADD / EDIT SUPPLIER -->
-  <div x-show="modals.supplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
-    <div class="bg-white rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold" x-text="forms.supplier.id ? 'Edit Supplier' : 'Add New Supplier'"></h3>
-      <div class="space-y-3 text-sm">
-        <input x-model="forms.supplier.company_name" placeholder="Supplier Company Name *" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.supplier.contact_person" placeholder="Sales Contact Person" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.supplier.phone_whatsapp" placeholder="Phone / WhatsApp (e.g. 919840012345)" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.supplier.email" placeholder="Email Address" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.supplier.city_country" placeholder="City & Country" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.supplier.specialties" placeholder="Products Supplied / Specialties" class="w-full border rounded px-3 py-2" />
-        <input x-model="forms.supplier.certifications" placeholder="Certifications (ISO, FSSAI, APEDA, FAA...)" class="w-full border rounded px-3 py-2" />
+  <!-- MODAL 2A: VIEW SUPPLIER PROFILE -->
+  <div x-show="modals.viewSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-lg w-full p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-start border-b pb-3">
+        <div>
+          <span class="font-mono text-xs font-bold text-emerald-700" x-text="viewingSupplier?.supplier_code"></span>
+          <h3 class="text-lg font-bold text-slate-900" x-text="viewingSupplier?.company_name"></h3>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold"
+              :class="supplierStatusBadge(viewingSupplier?.supplier_status)"
+              x-text="viewingSupplier?.supplier_status"></span>
       </div>
-      <div class="flex justify-end gap-2 pt-2">
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <span class="text-slate-400 block">Contact Name</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.contact_person || '-'"></strong>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Role / Designation</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.role_designation || '-'"></strong>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Email</span>
+          <a x-show="viewingSupplier?.email" :href="`mailto:${viewingSupplier?.email}`" class="text-blue-600 hover:underline font-semibold" x-text="viewingSupplier?.email"></a>
+          <span x-show="!viewingSupplier?.email">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block">WhatsApp / Contact</span>
+          <a x-show="viewingSupplier?.phone_whatsapp" :href="waLink(viewingSupplier?.phone_whatsapp)" target="_blank" class="text-emerald-700 hover:underline font-semibold" x-text="viewingSupplier?.phone_whatsapp"></a>
+          <span x-show="!viewingSupplier?.phone_whatsapp">-</span>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Facility Type</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.facility_type || '-'"></strong>
+        </div>
+        <div>
+          <span class="text-slate-400 block">Facility Address</span>
+          <strong class="text-slate-800" x-text="viewingSupplier?.city_country || '-'"></strong>
+        </div>
+        <div class="col-span-2">
+          <span class="text-slate-400 block mb-1">Linked Products (<span x-text="viewingSupplier?.linked_products?.length || 0"></span>)</span>
+          <div class="flex flex-wrap gap-1.5">
+            <template x-if="!viewingSupplier?.linked_products || viewingSupplier.linked_products.length === 0">
+              <span class="text-slate-400">No products linked.</span>
+            </template>
+            <template x-for="lp in (viewingSupplier?.linked_products || [])" :key="lp.product_id + '-' + lp.product_name">
+              <span class="bg-teal-50 text-teal-800 border border-teal-200 px-2.5 py-1 rounded font-semibold"
+                    x-text="`${lp.product_id ? lp.product_id + ' — ' : ''}${lp.product_name}`"></span>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button @click="modals.viewSupplier = false; openSupplierModal(viewingSupplier)" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-semibold">Edit Supplier</button>
+        <button @click="modals.viewSupplier = false" class="px-4 py-2 text-xs text-slate-600 font-semibold">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2B: ADD / EDIT SUPPLIER -->
+  <div x-show="modals.supplier" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display:none;">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <h3 class="text-lg font-bold" x-text="forms.supplier.id ? 'Edit Supplier' : 'Add New Supplier'"></h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">1. Supplier ID (Auto-Generated)</label>
+          <input x-model="forms.supplier.supplier_code" readonly class="w-full border rounded px-3 py-2 mt-1 bg-slate-100 font-mono font-bold text-slate-700" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">2. Supplier Name *</label>
+          <input x-model="forms.supplier.company_name" placeholder="Supplier Company Name *" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">3. Contact Name</label>
+          <input x-model="forms.supplier.contact_person" placeholder="Primary contact person" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">4. Role / Designation</label>
+          <input x-model="forms.supplier.role_designation" placeholder="e.g. Export Manager, Proprietor" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">5. Email</label>
+          <input type="email" x-model="forms.supplier.email" placeholder="sales@supplier.com" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">6. WhatsApp / Contact Number (with country code)</label>
+          <input x-model="forms.supplier.phone_whatsapp" placeholder="e.g. 919840012345" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">7. Facility Type</label>
+          <select x-model="forms.supplier.facility_type" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Manufacturing</option>
+            <option>Processing</option>
+            <option>Warehouse</option>
+            <option>Registered Office</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Supplier Status</label>
+          <select x-model="forms.supplier.supplier_status" class="w-full border rounded px-3 py-2 mt-1 bg-white">
+            <option>Under Verification</option>
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs font-semibold text-slate-600">8. Facility Address</label>
+          <input x-model="forms.supplier.city_country" placeholder="Full plant / warehouse / office address" class="w-full border rounded px-3 py-2 mt-1" />
+        </div>
+
+        <!-- 9. Multi-Product Picker from GL Products Tab -->
+        <div class="md:col-span-2 border-t pt-3 space-y-2">
+          <label class="text-xs font-semibold text-slate-700 block">9. Products (Select from GL Products Tab)</label>
+          <div class="flex gap-2">
+            <select x-model="selectedProductToLink" class="flex-1 border rounded px-3 py-2 text-xs bg-white">
+              <option value="">-- Select Product ID &amp; Product Name --</option>
+              <template x-for="gp in glProducts" :key="gp.id">
+                <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
+              </template>
+            </select>
+            <button type="button" @click="addLinkedProductToSupplier()"
+                    class="bg-teal-600 hover:bg-teal-500 text-white px-3.5 py-2 rounded text-xs font-semibold whitespace-nowrap">
+              + Add Product
+            </button>
+          </div>
+          <p x-show="supplierProductError" class="text-xs text-red-600 font-semibold" x-text="supplierProductError"></p>
+
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <template x-for="(lp, idx) in forms.supplier.linked_products" :key="lp.product_id + '-' + lp.product_name">
+              <span class="inline-flex items-center gap-1.5 bg-teal-50 text-teal-900 border border-teal-200 px-2.5 py-1 rounded-full text-xs font-medium">
+                <span x-text="`${lp.product_id ? lp.product_id + ' — ' : ''}${lp.product_name}`"></span>
+                <button type="button" @click="removeLinkedProductFromSupplier(idx)" class="text-red-600 font-bold hover:text-red-800">&times;</button>
+              </span>
+            </template>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
         <button @click="modals.supplier = false" class="px-4 py-2 text-sm text-slate-600">Cancel</button>
         <button @click="saveSupplier()" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-semibold">Save Supplier</button>
       </div>
@@ -924,7 +1053,7 @@
         <div class="flex justify-between items-center flex-wrap gap-2">
           <div>
             <span class="text-sm font-bold">Product Lines (Select from GL Products Master)</span>
-            <p class="text-[11px] text-slate-500">Pick a master product to auto-fill specs, grade/variant, and unit.</p>
+            <p class="text-[11px] text-slate-500">Pick a master product to auto-fill product name and origin/HSN details.</p>
           </div>
           <button @click="addProductRow()" class="text-xs bg-blue-100 text-blue-800 px-3 py-1.5 rounded font-semibold">+ Add Product Line</button>
         </div>
@@ -935,11 +1064,11 @@
                     class="md:col-span-3 border rounded px-2 py-1.5 bg-white font-medium">
               <option value="">-- From GL Products --</option>
               <template x-for="gp in glProducts" :key="gp.id">
-                <option :value="gp.id" x-text="`${gp.product_name}${gp.grades_variants ? ' (' + gp.grades_variants + ')' : ''}`"></option>
+                <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
               </template>
             </select>
             <input x-model="prod.product_name" placeholder="Product Name *" class="md:col-span-3 border rounded px-2 py-1.5 bg-white" />
-            <input x-model="prod.specifications" placeholder="Grade / Form / Specs" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
+            <input x-model="prod.specifications" placeholder="Origin / HSN / Specs" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
             <input type="number" step="0.01" x-model="prod.required_qty" placeholder="Qty" class="md:col-span-1 border rounded px-2 py-1.5 bg-white" />
             <input x-model="prod.unit" placeholder="Unit" class="md:col-span-1 border rounded px-2 py-1.5 bg-white" />
             <input type="number" step="0.01" x-model="prod.buyer_target_price" :placeholder="`Target (${forms.order.currency})`" class="md:col-span-2 border rounded px-2 py-1.5 bg-white" />
@@ -965,7 +1094,7 @@
                   class="w-full border rounded px-3 py-2 mt-1 bg-white">
             <option value="">-- Optional: Pick Master Product --</option>
             <template x-for="gp in glProducts" :key="gp.id">
-              <option :value="gp.id" x-text="`${gp.product_name}${gp.grades_variants ? ' (' + gp.grades_variants + ')' : ''}`"></option>
+              <option :value="gp.id" x-text="`${gp.product_id ? gp.product_id + ' — ' : ''}${gp.product_name}`"></option>
             </template>
           </select>
         </div>
@@ -1016,8 +1145,8 @@
           <label class="text-xs font-semibold text-slate-600">Choose from Supplier Directory *</label>
           <select x-model="forms.quote.supplier_id" class="w-full border rounded px-3 py-2 mt-1 bg-white">
             <option value="">-- Select Supplier --</option>
-            <template x-for="s in suppliers" :key="s.id">
-              <option :value="s.id" x-text="`${s.company_name} (${s.contact_person || s.city_country})`"></option>
+            <template x-for="s in suppliers.filter(item => !item.is_archived)" :key="s.id">
+              <option :value="s.id" x-text="`${s.supplier_code} — ${s.company_name} (${s.contact_person || s.city_country})`"></option>
             </template>
           </select>
         </div>
@@ -1220,8 +1349,12 @@
         activeTab: 'glProducts',
         buyerSearch: '',
         supplierSearch: '',
+        supplierStatusFilter: 'ALL',
+        showArchivedSuppliers: false,
+        selectedProductToLink: '',
+        supplierProductError: '',
+        viewingSupplier: null,
         glProductSearch: '',
-        glProductStatusFilter: 'ALL',
         glProducts: [],
         buyers: [],
         suppliers: [],
@@ -1236,6 +1369,7 @@
           glProduct: false,
           buyer: false,
           supplier: false,
+          viewSupplier: false,
           order: false,
           addProduct: false,
           assignSupplier: false,
@@ -1246,21 +1380,30 @@
         forms: {
           glProduct: {
             id: null,
+            product_id: '',
             product_name: '',
             category: '',
-            product_form: '',
             origin: '',
-            grades_variants: '',
-            hsn_code: '',
-            hsn_jurisdiction: '',
-            hsn_verification_status: 'Unverified',
-            standard_unit: 'MT',
-            moq: '',
-            test_doc_checklist: '',
-            status: 'Under Evaluation',
+            spec_coa_pdf_name: '',
+            spec_coa_pdf_data: '',
+            hsn_code: 'Need to update',
+            internal_notes: '',
           },
           buyer: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', destination_port: '', notes: '' },
-          supplier: { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' },
+          supplier: {
+            id: null,
+            supplier_code: '',
+            company_name: '',
+            contact_person: '',
+            role_designation: '',
+            phone_whatsapp: '',
+            email: '',
+            facility_type: 'Manufacturing',
+            city_country: '',
+            linked_products: [],
+            supplier_status: 'Under Verification',
+            is_archived: 0,
+          },
           order: {
             order_code: '',
             buyer_id: '',
@@ -1278,7 +1421,7 @@
             target_delivery_date: '',
             products: [],
           },
-          singleProduct: { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'MT', buyer_target_price: '' },
+          singleProduct: { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
           quote: { supplier_id: '', quoted_price: '', moq: '', moq_unit: 'KG', lead_time_days: '', status: '1 - RFQ Sent', remarks: '' },
           buyerLedger: { id: null, invoice_no: '', buyer_id: '', order_id: '', currency: 'USD', invoice_amount: '', amount_received: '', due_date: '', payment_status: 'Unpaid', remarks: '' },
           supplierLedger: { id: null, po_ref: '', supplier_id: '', order_id: '', currency: 'INR', total_amount: '', amount_paid: '', qc_status: 'Pending QC', payment_status: 'Pending', remarks: '' },
@@ -1289,24 +1432,28 @@
           return this.orders.find((o) => String(o.id) === String(this.selectedOrderId)) || null;
         },
 
+        get activeSuppliersCount() {
+          return this.suppliers.filter((s) => !s.is_archived).length;
+        },
+
+        get archivedSuppliersCount() {
+          return this.suppliers.filter((s) => s.is_archived).length;
+        },
+
         get filteredGlProducts() {
           const q = this.glProductSearch.toLowerCase().trim();
-          return this.glProducts.filter((gp) => {
-            const statusOk = this.glProductStatusFilter === 'ALL' || gp.status === this.glProductStatusFilter;
-            const searchOk =
-              !q ||
-              [
-                gp.product_name,
-                gp.category,
-                gp.product_form,
-                gp.origin,
-                gp.grades_variants,
-                gp.hsn_code,
-                gp.hsn_jurisdiction,
-                gp.test_doc_checklist,
-              ].some((f) => String(f || '').toLowerCase().includes(q));
-            return statusOk && searchOk;
-          });
+          if (!q) return this.glProducts;
+          return this.glProducts.filter((gp) =>
+            [
+              gp.product_id,
+              gp.product_name,
+              gp.category,
+              gp.origin,
+              gp.spec_coa_pdf_name,
+              gp.hsn_code,
+              gp.internal_notes,
+            ].some((f) => String(f || '').toLowerCase().includes(q))
+          );
         },
 
         get filteredBuyers() {
@@ -1320,25 +1467,35 @@
 
         get filteredSuppliers() {
           const q = this.supplierSearch.toLowerCase().trim();
-          if (!q) return this.suppliers;
-          return this.suppliers.filter((s) =>
-            [s.company_name, s.contact_person, s.phone_whatsapp, s.email, s.city_country, s.specialties, s.certifications]
-              .some((field) => String(field || '').toLowerCase().includes(q))
-          );
+          return this.suppliers.filter((s) => {
+            if (!this.showArchivedSuppliers && s.is_archived) return false;
+            const statusOk = this.supplierStatusFilter === 'ALL' || (s.supplier_status || 'Under Verification') === this.supplierStatusFilter;
+            if (!statusOk) return false;
+            if (!q) return true;
+            const productNames = (s.linked_products || []).map((lp) => `${lp.product_id} ${lp.product_name}`).join(' ');
+            return [
+              s.supplier_code,
+              s.company_name,
+              s.contact_person,
+              s.role_designation,
+              s.phone_whatsapp,
+              s.email,
+              s.facility_type,
+              s.city_country,
+              productNames,
+              s.supplier_status,
+            ].some((field) => String(field || '').toLowerCase().includes(q));
+          });
         },
 
-        glStatusBadge(status) {
+        supplierStatusBadge(status) {
           switch (status) {
-            case 'Ready to Offer':
+            case 'Active':
               return 'bg-emerald-100 text-emerald-800';
-            case 'Sourcing in Progress':
-              return 'bg-blue-100 text-blue-800';
-            case 'On Hold':
-              return 'bg-amber-100 text-amber-800';
-            case 'Discontinued':
+            case 'Inactive':
               return 'bg-red-100 text-red-800';
             default:
-              return 'bg-slate-100 text-slate-700';
+              return 'bg-amber-100 text-amber-800';
           }
         },
 
@@ -1407,20 +1564,37 @@
             ? { ...gp }
             : {
                 id: null,
+                product_id: '',
                 product_name: '',
                 category: '',
-                product_form: '',
                 origin: '',
-                grades_variants: '',
-                hsn_code: '',
-                hsn_jurisdiction: '',
-                hsn_verification_status: 'Unverified',
-                standard_unit: 'MT',
-                moq: '',
-                test_doc_checklist: '',
-                status: 'Under Evaluation',
+                spec_coa_pdf_name: '',
+                spec_coa_pdf_data: '',
+                hsn_code: 'Need to update',
+                internal_notes: '',
               };
           this.modals.glProduct = true;
+        },
+
+        handleSpecCoaPdfUpload(event) {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Please upload a PDF file.');
+            event.target.value = '';
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.forms.glProduct.spec_coa_pdf_name = file.name;
+            this.forms.glProduct.spec_coa_pdf_data = reader.result;
+          };
+          reader.readAsDataURL(file);
+        },
+
+        clearSpecCoaPdf() {
+          this.forms.glProduct.spec_coa_pdf_name = '';
+          this.forms.glProduct.spec_coa_pdf_data = '';
         },
 
         async saveGlProduct() {
@@ -1437,7 +1611,7 @@
         },
 
         async deleteGlProduct(id) {
-          if (!confirm('Delete this product from GL Products Master?')) return;
+          if (!confirm('Delete this product from GL Products?')) return;
           await fetch(`/api/gl-products/${id}`, { method: 'DELETE' });
           await this.loadAll();
         },
@@ -1473,15 +1647,81 @@
         },
 
         // --- SUPPLIER CRUD ---
+        nextSupplierCode() {
+          const maxNum = this.suppliers.reduce((max, s) => {
+            const m = String(s.supplier_code || '').match(/(\d+)$/);
+            const num = m ? parseInt(m[1], 10) : Number(s.id) || 0;
+            return num > max ? num : max;
+          }, 0);
+          return `GL-SUP-${String(maxNum + 1).padStart(4, '0')}`;
+        },
+
+        openViewSupplierModal(supplier) {
+          this.viewingSupplier = supplier;
+          this.modals.viewSupplier = true;
+        },
+
         openSupplierModal(supplier = null) {
+          this.selectedProductToLink = '';
+          this.supplierProductError = '';
           this.forms.supplier = supplier
-            ? { ...supplier }
-            : { id: null, company_name: '', contact_person: '', phone_whatsapp: '', email: '', city_country: '', specialties: '', certifications: '' };
+            ? {
+                ...supplier,
+                supplier_code: supplier.supplier_code || `GL-SUP-${String(supplier.id).padStart(4, '0')}`,
+                role_designation: supplier.role_designation || '',
+                facility_type: supplier.facility_type || 'Manufacturing',
+                linked_products: Array.isArray(supplier.linked_products) ? [...supplier.linked_products] : [],
+                supplier_status: supplier.supplier_status || 'Under Verification',
+                is_archived: Number(supplier.is_archived) || 0,
+              }
+            : {
+                id: null,
+                supplier_code: this.nextSupplierCode(),
+                company_name: '',
+                contact_person: '',
+                role_designation: '',
+                phone_whatsapp: '',
+                email: '',
+                facility_type: 'Manufacturing',
+                city_country: '',
+                linked_products: [],
+                supplier_status: 'Under Verification',
+                is_archived: 0,
+              };
           this.modals.supplier = true;
         },
 
+        addLinkedProductToSupplier() {
+          this.supplierProductError = '';
+          if (!this.selectedProductToLink) return;
+          const gp = this.glProducts.find((p) => String(p.id) === String(this.selectedProductToLink));
+          if (!gp) return;
+
+          const exists = this.forms.supplier.linked_products.some(
+            (lp) =>
+              String(lp.gl_product_id) === String(gp.id) ||
+              (gp.product_id && lp.product_id === gp.product_id)
+          );
+          if (exists) {
+            this.supplierProductError = `"${gp.product_name}" is already linked to this supplier.`;
+            return;
+          }
+
+          this.forms.supplier.linked_products.push({
+            gl_product_id: gp.id,
+            product_id: gp.product_id || '',
+            product_name: gp.product_name,
+          });
+          this.selectedProductToLink = '';
+        },
+
+        removeLinkedProductFromSupplier(index) {
+          this.forms.supplier.linked_products.splice(index, 1);
+          this.supplierProductError = '';
+        },
+
         async saveSupplier() {
-          if (!this.forms.supplier.company_name) return alert('Supplier name required');
+          if (!this.forms.supplier.company_name.trim()) return alert('Supplier name required');
           const isEdit = Boolean(this.forms.supplier.id);
           const url = isEdit ? `/api/suppliers/${this.forms.supplier.id}` : '/api/suppliers';
           await fetch(url, {
@@ -1494,11 +1734,15 @@
           await this.loadAll();
         },
 
-        async deleteSupplier(supplier) {
-          if (!confirm(`Delete supplier "${supplier.company_name}"?`)) return;
-          const res = await fetch(`/api/suppliers/${supplier.id}`, { method: 'DELETE' });
-          const data = await res.json();
-          if (!res.ok) return alert(data.error || 'Could not delete supplier');
+        async toggleArchiveSupplier(supplier) {
+          const nextState = supplier.is_archived ? 0 : 1;
+          const label = nextState ? 'Archive' : 'Restore';
+          if (!confirm(`${label} supplier "${supplier.company_name}"?`)) return;
+          await fetch(`/api/suppliers/${supplier.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archive_only: true, is_archived: nextState }),
+          });
           await this.loadAll();
         },
 
@@ -1518,10 +1762,12 @@
           const gp = this.glProducts.find((item) => String(item.id) === String(row.gl_product_id));
           if (!gp) return;
           row.product_name = gp.product_name;
-          const parts = [gp.grades_variants, gp.product_form, gp.origin ? `Origin: ${gp.origin}` : ''].filter(Boolean);
+          const parts = [
+            gp.product_id ? `ID: ${gp.product_id}` : '',
+            gp.origin ? `Origin: ${gp.origin}` : '',
+            gp.hsn_code && gp.hsn_code !== 'Need to update' ? `HSN: ${gp.hsn_code}` : '',
+          ].filter(Boolean);
           row.specifications = parts.join(' | ');
-          row.unit = gp.standard_unit || 'MT';
-          if (!row.required_qty && gp.moq) row.required_qty = gp.moq;
         },
 
         openNewOrderModal() {
@@ -1543,7 +1789,7 @@
             general_notes: '',
             target_delivery_date: '',
             products: [
-              { gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'MT', buyer_target_price: '' },
+              { gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' },
             ],
           };
           this.modals.order = true;
@@ -1555,7 +1801,7 @@
             product_name: '',
             specifications: '',
             required_qty: '',
-            unit: 'MT',
+            unit: 'KG',
             buyer_target_price: '',
           });
         },
@@ -1591,7 +1837,7 @@
             product_name: '',
             specifications: '',
             required_qty: '',
-            unit: 'MT',
+            unit: 'KG',
             buyer_target_price: '',
           };
           this.modals.addProduct = true;
@@ -1611,7 +1857,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(this.forms.singleProduct),
           });
-          this.forms.singleProduct = { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'MT', buyer_target_price: '' };
+          this.forms.singleProduct = { id: null, gl_product_id: '', product_name: '', specifications: '', required_qty: '', unit: 'KG', buyer_target_price: '' };
           this.modals.addProduct = false;
           await this.loadAll();
         },

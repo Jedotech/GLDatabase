@@ -45,11 +45,17 @@ async function ensureSchema(db) {
 
     CREATE TABLE IF NOT EXISTS suppliers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supplier_code TEXT DEFAULT '',
       company_name TEXT NOT NULL,
       contact_person TEXT,
+      role_designation TEXT DEFAULT '',
       phone_whatsapp TEXT,
       email TEXT,
+      facility_type TEXT DEFAULT 'Manufacturing',
       city_country TEXT,
+      linked_products_json TEXT DEFAULT '[]',
+      supplier_status TEXT DEFAULT 'Under Verification',
+      is_archived INTEGER DEFAULT 0,
       specialties TEXT,
       certifications TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -165,6 +171,7 @@ async function ensureSchema(db) {
     );
   `);
 
+  // Safe migrations for existing Turso databases
   await safeAlter(db, `ALTER TABLE item_quotes ADD COLUMN moq_unit TEXT DEFAULT 'KG'`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_contact TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN enquiry_received_date TEXT DEFAULT ''`);
@@ -175,12 +182,31 @@ async function ensureSchema(db) {
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN buyer_documents TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE orders ADD COLUMN general_notes TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE order_items ADD COLUMN gl_product_id INTEGER`);
+
   await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN product_id TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN spec_coa_pdf_name TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN spec_coa_pdf_data TEXT DEFAULT ''`);
   await safeAlter(db, `ALTER TABLE gl_products ADD COLUMN internal_notes TEXT DEFAULT ''`);
 
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN supplier_code TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN role_designation TEXT DEFAULT ''`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN facility_type TEXT DEFAULT 'Manufacturing'`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN linked_products_json TEXT DEFAULT '[]'`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN supplier_status TEXT DEFAULT 'Under Verification'`);
+  await safeAlter(db, `ALTER TABLE suppliers ADD COLUMN is_archived INTEGER DEFAULT 0`);
+
   schemaInitialized = true;
+}
+
+function parseLinkedProducts(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 export async function onRequest(context) {
@@ -280,11 +306,17 @@ export async function onRequest(context) {
 
     // 1. GET /api/directory
     if (path === '/api/directory' && method === 'GET') {
-      const [buyers, suppliers] = await Promise.all([
+      const [buyers, suppliersRes] = await Promise.all([
         db.execute('SELECT * FROM buyers ORDER BY company_name ASC'),
-        db.execute('SELECT * FROM suppliers ORDER BY company_name ASC'),
+        db.execute('SELECT * FROM suppliers ORDER BY id ASC'),
       ]);
-      return jsonResponse({ buyers: buyers.rows, suppliers: suppliers.rows });
+      const suppliers = suppliersRes.rows.map((s, idx) => ({
+        ...s,
+        supplier_code: s.supplier_code || `GL-SUP-${String(s.id || idx + 1).padStart(4, '0')}`,
+        linked_products: parseLinkedProducts(s.linked_products_json),
+        is_archived: Number(s.is_archived) || 0,
+      }));
+      return jsonResponse({ buyers: buyers.rows, suppliers });
     }
 
     // 2. POST /api/buyers
@@ -332,22 +364,50 @@ export async function onRequest(context) {
 
     // 4. POST /api/suppliers
     if (path === '/api/suppliers' && method === 'POST') {
-      const { company_name, contact_person, phone_whatsapp, email, city_country, specialties, certifications } =
-        await request.json();
+      const {
+        supplier_code,
+        company_name,
+        contact_person,
+        role_designation,
+        phone_whatsapp,
+        email,
+        facility_type,
+        city_country,
+        linked_products,
+        supplier_status,
+        certifications,
+      } = await request.json();
+
+      const cleanLinked = Array.isArray(linked_products) ? linked_products : [];
+      const specialtiesText = cleanLinked.map((p) => `${p.product_id ? p.product_id + ' - ' : ''}${p.product_name}`).join(', ');
+
       const result = await db.execute({
-        sql: `INSERT INTO suppliers (company_name, contact_person, phone_whatsapp, email, city_country, specialties, certifications)
-              VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+        sql: `INSERT INTO suppliers
+              (supplier_code, company_name, contact_person, role_designation, phone_whatsapp, email, facility_type, city_country, linked_products_json, supplier_status, is_archived, specialties, certifications)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) RETURNING *`,
         args: [
+          supplier_code || '',
           company_name,
           contact_person || '',
+          role_designation || '',
           phone_whatsapp || '',
           email || '',
+          facility_type || 'Manufacturing',
           city_country || '',
-          specialties || '',
+          JSON.stringify(cleanLinked),
+          supplier_status || 'Under Verification',
+          specialtiesText,
           certifications || '',
         ],
       });
-      return jsonResponse(result.rows[0]);
+
+      const created = result.rows[0];
+      if (!created.supplier_code) {
+        const autoCode = `GL-SUP-${String(created.id).padStart(4, '0')}`;
+        await db.execute({ sql: 'UPDATE suppliers SET supplier_code = ? WHERE id = ?', args: [autoCode, created.id] });
+        created.supplier_code = autoCode;
+      }
+      return jsonResponse(created);
     }
 
     // 5. PUT & DELETE /api/suppliers/:id
@@ -355,19 +415,55 @@ export async function onRequest(context) {
     if (supplierMatch) {
       const supplierId = supplierMatch[1];
       if (method === 'PUT') {
-        const { company_name, contact_person, phone_whatsapp, email, city_country, specialties, certifications } =
-          await request.json();
+        const body = await request.json();
+        // Handle Archive / Unarchive toggle
+        if (body.archive_only) {
+          await db.execute({
+            sql: `UPDATE suppliers SET is_archived = ? WHERE id = ?`,
+            args: [body.is_archived ? 1 : 0, supplierId],
+          });
+          return jsonResponse({ success: true });
+        }
+
+        const {
+          supplier_code,
+          company_name,
+          contact_person,
+          role_designation,
+          phone_whatsapp,
+          email,
+          facility_type,
+          city_country,
+          linked_products,
+          supplier_status,
+          is_archived,
+          certifications,
+        } = body;
+
+        const cleanLinked = Array.isArray(linked_products) ? linked_products : [];
+        const specialtiesText = cleanLinked.map((p) => `${p.product_id ? p.product_id + ' - ' : ''}${p.product_name}`).join(', ');
+        const finalCode = supplier_code || `GL-SUP-${String(supplierId).padStart(4, '0')}`;
+
         await db.execute({
           sql: `UPDATE suppliers
-                SET company_name = ?, contact_person = ?, phone_whatsapp = ?, email = ?, city_country = ?, specialties = ?, certifications = ?
+                SET supplier_code = ?, company_name = ?, contact_person = ?, role_designation = ?,
+                    phone_whatsapp = ?, email = ?, facility_type = ?, city_country = ?,
+                    linked_products_json = ?, supplier_status = ?, is_archived = ?,
+                    specialties = ?, certifications = ?
                 WHERE id = ?`,
           args: [
+            finalCode,
             company_name,
             contact_person || '',
+            role_designation || '',
             phone_whatsapp || '',
             email || '',
+            facility_type || 'Manufacturing',
             city_country || '',
-            specialties || '',
+            JSON.stringify(cleanLinked),
+            supplier_status || 'Under Verification',
+            is_archived ? 1 : 0,
+            specialtiesText,
             certifications || '',
             supplierId,
           ],
@@ -380,7 +476,7 @@ export async function onRequest(context) {
           args: [supplierId],
         });
         if (Number(check.rows[0].count) > 0) {
-          return jsonResponse({ error: 'Cannot delete supplier: they are assigned to active product quotes.' }, 400);
+          return jsonResponse({ error: 'Cannot delete supplier: they are assigned to active product quotes. Use Archive instead.' }, 400);
         }
         await db.execute({ sql: 'DELETE FROM suppliers WHERE id = ?', args: [supplierId] });
         return jsonResponse({ success: true });
